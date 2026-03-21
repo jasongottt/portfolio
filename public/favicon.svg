@@ -1,0 +1,15 @@
+<svg version="1.2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+	<style>
+		tspan { white-space:pre } 
+		.t0 { font-size: 24px;fill: #301c46;font-weight: 400;font-family: "Copse", "Copse" } 
+		.t1 { font-size: 24px;fill: #c19ee7;font-weight: 400;font-family: "Copse", "Copse" } 
+	</style>
+	<text id="JG" style="transform: matrix(1.208,0,0,1.208,2.308,25.209)">
+		<tspan x="0" y="0" class="t0">J</tspan><tspan  y="0" class="t0">G</tspan><tspan  y="0" class="t0">
+</tspan>
+	</text>
+	<text id="JG" style="transform: matrix(1.208,0,0,1.208,1.183,22.959)">
+		<tspan x="0" y="0" class="t1">J</tspan><tspan  y="0" class="t1">G</tspan><tspan  y="0" class="t1">
+</tspan>
+	</text>
+</svg>
