@@ -471,7 +471,7 @@ const styles = {
     backdropFilter: "blur(8px)",
   },
   hello: {
-    fontSize: "clamp(4.5rem, 10vw, 8rem)",
+    fontSize: "clamp(4.5rem, 8vw, 8rem)",
     color: "white",
     margin: 0,
     lineHeight: 0.95,
