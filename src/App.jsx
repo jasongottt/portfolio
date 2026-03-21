@@ -104,8 +104,8 @@ export default function App() {
         "The website you're currently on! I built this website to have a personal space to showcase my projects and experience, as well as to experiment with various design and development techniques, especially with React.js. I built the website using React.js for the frontend, with Vite as the build tool for a fast development experience. The design incorporates various visual effects, such as the dithered background and floating media cards. This project was a great opportunity for me to practice my frontend development skills and explore creative design possibilities.",
       repoUrl: "https://github.com/jasongottt/portfolio",
       screenshots: [
-        { label: "Landing page screenshot", path: "/projects/this1.png" },
-        { label: "Projects modal screenshot", path: "/projects/this2.png" },
+        { label: "Projects section", path: "/projects/this1.png" },
+        { label: "Landing page", path: "/projects/this2.png" },
       ],
     },
   ];
