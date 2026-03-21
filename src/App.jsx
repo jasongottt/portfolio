@@ -20,7 +20,7 @@ export default function App() {
     {
       title: "Ship Happens",
       description:
-        "A simple resource management game built in ~10 hours for a game jam, based around the theme of \"Friendship\".",
+        "A resource management game built in ~10 hours for a game jam, based around the theme of \"Friendship\".",
       tech: "Godot, GDScript",
       year: "2025",
       accent: "Playable!",
@@ -54,7 +54,7 @@ export default function App() {
     {
       title: "Jammed!",
       description:
-        "A simple game prototype built for a class team project, focused around a straightforward gameplay loop.",
+        "A game prototype built for a class team project, focused around a straightforward gameplay loop.",
       tech: "Unreal Engine",
       year: "2025",
       accent: "",
