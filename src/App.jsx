@@ -214,7 +214,7 @@ export default function App() {
             </p>
             <br />
             <p style={styles.bodyText}>
-              Outside of development, I enjoy playing video games, especially ones with strong narrative and unique mechanics. I love hiking and exploring outdoors, and I spend a lot of time volunteering for Purdue's Dance Marathon, which raises money for the Riley Hospital for Children. If you'd be interested in donating there, <a href="https://events.dancemarathon.com/participants/jasongott" target="_blank" rel="noopener noreferrer"style={{ color: 'rgba(214, 202, 235, 1)' }}> here's my fundraising page!</a>
+              Outside of development, I enjoy playing video games, especially ones with strong narrative and unique mechanics. I love hiking and exploring outdoors, and I spend a lot of time volunteering for Purdue's Dance Marathon, which raises money for the Riley Hospital for Children. If you'd be interested in donating there, <a href="https://events.dancemarathon.com/participants/jasongott" target="_blank" rel="noopener noreferrer"style={{ textDecoration: 'underline', color: 'rgba(214, 202, 235, 1)' }}> here's my fundraising page!</a>
             </p>
           </section>
 
@@ -290,14 +290,24 @@ export default function App() {
 
       {selectedProject ? (
         <motion.div
-          style={styles.modalOverlay}
+          style={{
+            ...styles.modalOverlay,
+            ...(isPhoneLayout ? styles.modalOverlayPhone : {}),
+          }}
           onClick={() => setSelectedProject(null)}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.22, ease: "easeOut" }}
         >
-          <div style={styles.modalStage} onClick={(event) => event.stopPropagation()}>
-            {selectedProject.screenshots.slice(0, 4).map((image, index) => (
+          <div
+            style={{
+              ...styles.modalStage,
+              ...(isPhoneLayout ? styles.modalStagePhone : {}),
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            {!isPhoneLayout &&
+              selectedProject.screenshots.slice(0, 4).map((image, index) => (
               <motion.div
                 key={image.path}
                 style={{
@@ -345,7 +355,10 @@ export default function App() {
             ))}
 
             <motion.div
-              style={styles.modalCard}
+              style={{
+                ...styles.modalCard,
+                ...(isPhoneLayout ? styles.modalCardPhone : {}),
+              }}
               initial={{ opacity: 0, y: 28, scale: 0.94 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ type: "spring", stiffness: 230, damping: 24 }}
@@ -408,6 +421,33 @@ export default function App() {
                 </div>
               ) : null}
             </motion.div>
+
+            {isPhoneLayout ? (
+              <div style={styles.modalMediaRail}>
+                {selectedProject.screenshots.slice(0, 4).map((image) => (
+                  <button
+                    key={image.path}
+                    type="button"
+                    style={styles.modalMediaRailButton}
+                    onClick={() =>
+                      setSelectedImage({
+                        label: image.label,
+                        path: image.path.startsWith("/") ? image.path : `/${image.path}`,
+                      })
+                    }
+                  >
+                    <div style={styles.modalMediaRailInner}>
+                      <img
+                        src={image.path.startsWith("/") ? image.path : `/${image.path}`}
+                        alt={image.label}
+                        style={styles.modalMediaRailImage}
+                      />
+                      <span style={styles.mediaPlaceholderPath}>{image.label}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         </motion.div>
       ) : null}
@@ -754,6 +794,11 @@ const styles = {
     backgroundColor: "rgba(4, 4, 8, 0.72)",
     backdropFilter: "blur(10px)",
   },
+  modalOverlayPhone: {
+    alignItems: "flex-start",
+    overflowY: "auto",
+    padding: "12px",
+  },
   modalStage: {
     position: "relative",
     width: "min(1180px, 100%)",
@@ -761,6 +806,14 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+  },
+  modalStagePhone: {
+    width: "100%",
+    minHeight: "auto",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: "14px",
   },
   floatingMediaCard: {
     position: "absolute",
@@ -809,6 +862,43 @@ const styles = {
     textAlign: "left",
     overflowY: "auto",
     scrollbarWidth: "none",
+  },
+  modalCardPhone: {
+    width: "100%",
+    maxHeight: "none",
+    padding: "22px 18px",
+    borderRadius: "20px",
+  },
+  modalMediaRail: {
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: "12px",
+    width: "100%",
+  },
+  modalMediaRailButton: {
+    appearance: "none",
+    width: "100%",
+    padding: 0,
+    border: "1px solid rgba(180, 159, 214, 0.18)",
+    borderRadius: "18px",
+    background: "rgba(10, 11, 16, 0.86)",
+    overflow: "hidden",
+    cursor: "pointer",
+    textAlign: "left",
+  },
+  modalMediaRailInner: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+    padding: "14px",
+    backgroundColor: "rgba(16, 17, 24, 0.9)",
+  },
+  modalMediaRailImage: {
+    width: "100%",
+    aspectRatio: "16 / 10",
+    objectFit: "cover",
+    borderRadius: "12px",
+    display: "block",
   },
   modalClose: {
     appearance: "none",
