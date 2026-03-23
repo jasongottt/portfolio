@@ -16,6 +16,12 @@ export default function App() {
   const projectsViewportRef = useRef(null);
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [viewportSize, setViewportSize] = useState(() => ({
+    width: typeof window === "undefined" ? 1280 : window.innerWidth,
+    height: typeof window === "undefined" ? 800 : window.innerHeight,
+  }));
+  const isPortrait = viewportSize.height > viewportSize.width;
+  const isPhoneLayout = viewportSize.width <= 900 || (isPortrait && viewportSize.width <= 1200);
   const projects = [
     {
       title: "Ship Happens",
@@ -126,6 +132,17 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    const onResize = () =>
+      setViewportSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   return (
     <>
       <div style={styles.pageBackground} aria-hidden="true">
@@ -146,26 +163,30 @@ export default function App() {
         <div style={styles.backgroundTint} />
       </div>
 
-      <div style={styles.page}>
-        <header ref={containerRef} style={styles.landing}>
-          <div style={styles.heroShell}>
-            <h1 style={styles.hello}>
-              <VariableProximity
-                label="Jason Gottesman"
-                className="variable-proximity-demo"
-                fromFontVariationSettings="'wght' 400, 'opsz' 9"
-                toFontVariationSettings="'wght' 1000, 'opsz' 40"
-                containerRef={containerRef}
-                radius={140}
-                falloff="linear"
-              />
+      <div style={{ ...styles.page, ...(isPhoneLayout ? styles.pagePhone : {}) }}>
+        <header ref={containerRef} style={{ ...styles.landing, ...(isPhoneLayout ? styles.landingPhone : {}) }}>
+          <div style={{ ...styles.heroShell, ...(isPhoneLayout ? styles.heroShellPhone : {}) }}>
+            <h1 style={{ ...styles.hello, ...(isPhoneLayout ? styles.helloPhone : {}) }}>
+              {isPhoneLayout ? (
+                <span style={styles.heroTitleStatic}>Jason Gottesman</span>
+              ) : (
+                <VariableProximity
+                  label="Jason Gottesman"
+                  className="variable-proximity-demo"
+                  fromFontVariationSettings="'wght' 400, 'opsz' 9"
+                  toFontVariationSettings="'wght' 1000, 'opsz' 40"
+                  containerRef={containerRef}
+                  radius={140}
+                  falloff="linear"
+                />
+              )}
             </h1>
 
-            <p style={styles.heroLead}>
+            <p style={{ ...styles.heroLead, ...(isPhoneLayout ? styles.heroLeadPhone : {}) }}>
               CS + Game Development student at Purdue University with a passion for human-computer interaction through interesting software and video games.
             </p>
 
-            <div style={styles.actions}>
+            <div style={{ ...styles.actions, ...(isPhoneLayout ? styles.actionsPhone : {}) }}>
               <a href="#projects" style={styles.buttonPrimary}>
                 Projects
               </a>
@@ -180,7 +201,7 @@ export default function App() {
         </header>
 
         <main style={styles.content}>
-          <section style={styles.sectionPanel}>
+          <section style={{ ...styles.sectionPanel, ...(isPhoneLayout ? styles.panelPhone : {}) }}>
             <div style={styles.sectionHeader}>
               <h2>About</h2>
               <span style={styles.sectionLabel}>WHO AM I?</span>
@@ -197,7 +218,7 @@ export default function App() {
             </p>
           </section>
 
-          <section id="projects" style={styles.projectsSection}>
+          <section id="projects" style={{ ...styles.projectsSection, ...(isPhoneLayout ? styles.panelPhone : {}) }}>
             <div style={styles.sectionHeader}>
               <h2>Projects</h2>
               <span style={styles.sectionLabel}>WHAT CAN I MAKE?</span>
@@ -205,18 +226,18 @@ export default function App() {
             <p style={styles.projectsIntro}>
               A selection of projects I've made, some are marked as playable in-browser games.
             </p>
-            <div ref={projectsViewportRef} style={styles.projectsViewport}>
+            <div ref={projectsViewportRef} style={{ ...styles.projectsViewport, ...(isPhoneLayout ? styles.projectsViewportPhone : {}) }}>
               <div style={styles.projectsTrack}>
                 {projects.map((project) => (
                   <motion.button
                     key={project.title}
                     type="button"
-                    style={styles.cardLink}
+                    style={{ ...styles.cardLink, ...(isPhoneLayout ? styles.cardLinkPhone : {}) }}
                     onClick={() => setSelectedProject(project)}
                     whileHover={{ y: -4 }}
                     transition={{ type: "spring", stiffness: 260, damping: 24 }}
                   >
-                    <article style={styles.card}>
+                    <article style={{ ...styles.card, ...(isPhoneLayout ? styles.cardPhone : {}) }}>
                       <div style={styles.cardTopRow}>
                         <span style={styles.cardYear}>{project.year}</span>
                         <span
@@ -244,12 +265,12 @@ export default function App() {
             </div>
           </section>
 
-          <section id="contact" style={styles.contactSection}>
+          <section id="contact" style={{ ...styles.contactSection, ...(isPhoneLayout ? styles.panelPhone : {}) }}>
             <div style={styles.sectionHeader}>
               <h2>Contact</h2>
               <span style={styles.sectionLabel}>WHERE CAN YOU CONNECT WITH ME?</span>
             </div>
-            <div style={styles.contactGrid}>
+            <div style={{ ...styles.contactGrid, ...(isPhoneLayout ? styles.contactGridPhone : {}) }}>
               <a href="mailto:jgottes@purdue.edu" style={styles.contactCard}>
                 <Mail size={48} style={styles.contactIcon} />
               </a>
@@ -453,12 +474,21 @@ const styles = {
     lineHeight: 1.6,
     color: "#ece7f7",
   },
+  pagePhone: {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "0 16px 56px",
+  },
   landing: {
     minHeight: "100svh",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     textAlign: "center",
+  },
+  landingPhone: {
+    minHeight: "auto",
+    paddingTop: "20px",
   },
   heroShell: {
     width: "100%",
@@ -470,6 +500,10 @@ const styles = {
     boxShadow: "0 18px 50px rgba(0, 0, 0, 0.22)",
     backdropFilter: "blur(8px)",
   },
+  heroShellPhone: {
+    padding: "24px 18px",
+    borderRadius: "22px",
+  },
   hello: {
     fontSize: "clamp(4.5rem, 8vw, 8rem)",
     color: "white",
@@ -479,11 +513,26 @@ const styles = {
     fontWeight: 650,
     textAlign: "center",
   },
+  helloPhone: {
+    fontSize: "clamp(2.5rem, 12vw, 4rem)",
+    lineHeight: 1,
+    letterSpacing: "-0.04em",
+  },
+  heroTitleStatic: {
+    display: "block",
+    width: "100%",
+    overflowWrap: "anywhere",
+  },
   heroLead: {
     maxWidth: "760px",
     margin: "22px auto 0",
     fontSize: "1.12rem",
     color: "rgba(236, 231, 247, 0.76)",
+  },
+  heroLeadPhone: {
+    maxWidth: "100%",
+    marginTop: "16px",
+    fontSize: "1rem",
   },
   content: {
     paddingTop: "20px",
@@ -494,6 +543,11 @@ const styles = {
     gap: "14px",
     marginTop: "28px",
     flexWrap: "wrap",
+  },
+  actionsPhone: {
+    gap: "10px",
+    flexDirection: "column",
+    alignItems: "stretch",
   },
   buttonPrimary: {
     padding: "12px 22px",
@@ -535,6 +589,11 @@ const styles = {
     boxShadow: "0 18px 50px rgba(0, 0, 0, 0.22)",
     backdropFilter: "blur(8px)",
   },
+  panelPhone: {
+    marginTop: "28px",
+    padding: "22px 18px",
+    borderRadius: "20px",
+  },
   sectionHeader: {
     display: "flex",
     alignItems: "center",
@@ -570,10 +629,14 @@ const styles = {
     scrollbarWidth: "none",
     msOverflowStyle: "none",
   },
+  projectsViewportPhone: {
+    paddingBottom: "6px",
+  },
   projectsTrack: {
     display: "flex",
     gap: "20px",
-    width: "200%",
+    width: "max-content",
+    minWidth: "100%",
   },
   cardLink: {
     appearance: "none",
@@ -585,6 +648,9 @@ const styles = {
     flex: "0 0 320px",
     padding: 0,
     textAlign: "inherit",
+  },
+  cardLinkPhone: {
+    flex: "0 0 min(78vw, 280px)",
   },
   card: {
     position: "relative",
@@ -599,6 +665,11 @@ const styles = {
     overflow: "hidden",
     display: "flex",
     flexDirection: "column",
+  },
+  cardPhone: {
+    width: "min(78vw, 280px)",
+    minHeight: "250px",
+    padding: "22px 20px",
   },
   cardTopRow: {
     display: "flex",
@@ -651,6 +722,10 @@ const styles = {
     gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
     gap: "32px",
     marginTop: "10px",
+  },
+  contactGridPhone: {
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: "16px",
   },
   contactCard: {
     display: "flex",
