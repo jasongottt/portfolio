@@ -24,6 +24,21 @@ export default function App() {
   const isPhoneLayout = viewportSize.width <= 900 || (isPortrait && viewportSize.width <= 1200);
   const projects = [
     {
+      title: "Spotlight.",
+      description:
+        "A custom Kanban-style task management application built in React, with a focus on a clean and unique visual design.",
+      tech: "React.js, Supabase",
+      year: "2026",
+      accent: "",
+      details:
+        "This was a website made to practice React.js and Supabase, as well as to have a fun and visually interesting project to work on. The application features a custom drag-and-drop system for moving tasks between columns, as well as a unique visual design with various interactive elements. I implemented the backend using Supabase, which allowed me to quickly set up a database with various tables. The main unique feature of this project is the titular Spotlight, where the cursor is surrounded by a spotlight that illuminates and saturates the area around it, while the rest of the screen is darker and desaturated. This creates a unique visual effect and also helps to focus attention on the area around the cursor. Overall, this project was a great opportunity for me to practice my frontend and backend development skills, as well as to experiment with creative design ideas. This project is fully published online, and you can try it out at: \n\nhttps://spotlight-kanban-project.vercel.app/",
+      repoUrl: "https://github.com/jasongottt/Spotlight.",
+      screenshots: [
+        { label: "Main board view", path: "/projects/spotlight1.png" },
+        { label: "Task details panel", path: "/projects/spotlight2.png" },
+      ],
+    },
+    {
       title: "Ship Happens",
       description:
         "A resource management game built in ~10 hours for a game jam, based around the theme of \"Friendship\".",
