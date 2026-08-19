@@ -24,6 +24,36 @@ export default function App() {
   const isPhoneLayout = viewportSize.width <= 900 || (isPortrait && viewportSize.width <= 1200);
   const projects = [
     {
+      title: "XR Research Project",
+      description:
+        "A research project involving live LLM code compilation in Unity.",
+      tech: "Unity, C#, Ollama, Lua, Moonsharp",
+      year: "2026",
+      accent: "",
+      details:
+        "This was a solo summer research project. It is an XR application built in Unity that allows you to command a cube to exhibit different behaviors. Your command is fed to a local Qwen model with Ollama, and the model outputs Lua code that is then compiled and executed in Unity using Moonsharp. The application is built for the Meta Quest 3, and allows you to interact with the cube in VR. The project was a great opportunity for me to learn about XR development, as well as to experiment with LLMs and live code compilation. It has its limitations, but it was a fun and interesting project to work on. May continue working on it in the future.",
+      repoUrl: "https://github.com/jasongottt/VR-Live-Code-Generation",
+      screenshots: [
+        { label: "Make the cube green", path: "/projects/research1.png" },
+        { label: "Made the cube much smaller", path: "/projects/research2.png" },
+      ],
+    },
+    {
+      title: "Shadow Boxing",
+      description:
+        "An ongoing game prototype involving a two player boxing game.",
+      tech: "Godot, GDScript, Krita",
+      year: "2026",
+      accent: "",
+      details:
+        "An ongoing game prototype involving a two player boxing game. It follows a basic \"shadow boxing\" formula, where one player chooses a direction to punch and the other player must dodge a different direction. If the puncher misses, the roles are swapped until someone hits 3 punches in a row. Built in Godot with GDScript and Krita for art assets. The project is still in development, but the core mechanics are implemented. I plan to work on it on the side for the foreseeable future, and will continue to add features and polish the game. The project was a great opportunity for me to practice my game development skills, as well as to experiment with different mechanics and design ideas.",
+      repoUrl: "https://github.com/jasongottt/shadow-boxing",
+      screenshots: [
+        { label: "Basic gameplay sprites", path: "/projects/shadowbox1.png" },
+        { label: "Early main menu", path: "/projects/shadowbox2.png" },
+      ],
+    },
+    {
       title: "Spotlight.",
       description:
         "A custom Kanban-style task management application built in React, with a focus on a clean and unique visual design.",
