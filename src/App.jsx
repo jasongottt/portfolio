@@ -32,6 +32,8 @@ export default function App() {
       accent: "",
       details:
         "This was a solo summer research project. It is an XR application built in Unity that allows you to command a cube to exhibit different behaviors. Your command is fed to a local Qwen model with Ollama, and the model outputs Lua code that is then compiled and executed in Unity using Moonsharp. The application is built for the Meta Quest 3, and allows you to interact with the cube in VR. The project was a great opportunity for me to learn about XR development, as well as to experiment with LLMs and live code compilation. It has its limitations, but it was a fun and interesting project to work on. May continue working on it in the future.",
+      readMoreUrl:
+        "https://docs.google.com/document/d/1CQJBZzrihbuT358cC2lAaxg17GMCTpzcUwwpD1wuNBM/edit?usp=sharing",
       repoUrl: "https://github.com/jasongottt/VR-Live-Code-Generation",
       screenshots: [
         { label: "Make the cube green", path: "/projects/research1.png" },
@@ -428,7 +430,22 @@ export default function App() {
               <motion.p style={styles.modalText}>
                 {selectedProject.description}
               </motion.p>
-              <p style={styles.modalText}>{selectedProject.details}</p>
+              <p style={styles.modalText}>
+                {selectedProject.details}
+                {selectedProject.readMoreUrl ? (
+                  <>
+                    {" "}
+                    <a
+                      href={selectedProject.readMoreUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={styles.inlineLink}
+                    >
+                      Read more here.
+                    </a>
+                  </>
+                ) : null}
+              </p>
               <div style={styles.modalActions}>
                 {selectedProject.repoUrl ? (
                   <a
@@ -976,6 +993,10 @@ const styles = {
     color: "rgba(228, 223, 240, 0.8)",
     marginBottom: "14px",
     whiteSpace: 'pre-wrap'
+  },
+  inlineLink: {
+    color: "rgba(214, 202, 235, 1)",
+    textDecoration: "underline",
   },
   modalActions: {
     display: "flex",
