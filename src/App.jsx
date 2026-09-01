@@ -24,7 +24,7 @@ export default function App() {
   const isPhoneLayout = viewportSize.width <= 900 || (isPortrait && viewportSize.width <= 1200);
   const projects = [
     {
-      title: "XR Research Project",
+      title: "Real Time Code Injection",
       description:
         "A research project involving live LLM code compilation in Unity.",
       tech: "Unity, C#, Ollama, Lua, Moonsharp",
