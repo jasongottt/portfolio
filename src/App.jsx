@@ -1,14 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import VariableProximity from "./components/VariableProximity";
-import {
-  DEFAULT_THEME,
-  applyTheme,
-  pickRandomTheme,
-  readStoredTheme,
-  storeTheme,
-  themeToRgbTriple,
-} from "./theme";
+import { applyTheme, pickRandomTheme, themeToRgbTriple } from "./theme";
 
 // Lazy so the three.js it pulls in loads after first paint rather than
 // blocking it. The static wash underneath covers the gap.
@@ -24,7 +17,6 @@ import {
   Instagram,
   Linkedin,
   Mail,
-  RotateCcw,
   Shuffle,
   X,
 } from "lucide-react";
@@ -85,9 +77,9 @@ export default function App() {
     width: typeof window === "undefined" ? 1280 : window.innerWidth,
     height: typeof window === "undefined" ? 800 : window.innerHeight,
   }));
-  const [theme, setTheme] = useState(() =>
-    typeof window === "undefined" ? DEFAULT_THEME : readStoredTheme()
-  );
+  // Re-rolled on every load rather than remembered, so the site greets each
+  // visit in a different color.
+  const [theme, setTheme] = useState(() => pickRandomTheme());
   const prefersReducedMotion = useReducedMotion();
   const isPortrait = viewportSize.height > viewportSize.width;
   const isPhoneLayout = viewportSize.width <= 900 || (isPortrait && viewportSize.width <= 1200);
@@ -354,16 +346,7 @@ export default function App() {
   const waveColor = useMemo(() => themeToRgbTriple(theme), [theme]);
 
   const randomizeTheme = useCallback(() => {
-    setTheme((current) => {
-      const next = pickRandomTheme(current.id);
-      storeTheme(next);
-      return next;
-    });
-  }, []);
-
-  const resetTheme = useCallback(() => {
-    storeTheme(DEFAULT_THEME);
-    setTheme(DEFAULT_THEME);
+    setTheme((current) => pickRandomTheme(current.id));
   }, []);
 
   const scrollRail = useCallback((direction) => {
@@ -440,18 +423,6 @@ export default function App() {
       </motion.nav>
 
       <div style={{ ...styles.themeDock, ...(isPhoneLayout ? styles.themeDockPhone : {}) }}>
-        {theme.id !== DEFAULT_THEME.id ? (
-          <button
-            type="button"
-            className="pressable"
-            style={styles.themeReset}
-            onClick={resetTheme}
-            aria-label="Reset to the default color"
-            title="Reset color"
-          >
-            <RotateCcw size={13} aria-hidden="true" />
-          </button>
-        ) : null}
         <button
           type="button"
           className="pressable"
@@ -1095,21 +1066,6 @@ const styles = {
     letterSpacing: "0.12em",
     textTransform: "uppercase",
     whiteSpace: "nowrap",
-  },
-  themeReset: {
-    appearance: "none",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    width: "32px",
-    minHeight: "32px",
-    padding: 0,
-    marginRight: "-1px",
-    border: `1px solid ${RULE}`,
-    backgroundColor: shade(27, 4, 0.9),
-    backdropFilter: "blur(10px)",
-    color: tint(50, 94),
-    cursor: "pointer",
   },
 
   /* ---- Page shell ---- */

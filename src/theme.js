@@ -36,9 +36,10 @@ export const THEME_PRESETS = [
   { id: "sand", name: "Sand", hue: 36, sat: 0.2 },
 ];
 
+// Mirrors the --hue / --sat fallback declared on :root in index.css, which is
+// what shows for the instant before the first layout effect runs.
 export const DEFAULT_THEME = THEME_PRESETS[0];
 
-const STORAGE_KEY = "portfolio:theme";
 
 /**
  * CSS consumes --hue directly, but the Dither background cannot: it takes a raw
@@ -68,30 +69,13 @@ export function applyTheme(theme) {
   root.style.setProperty("--sat", String(theme.sat));
 }
 
-export function findTheme(id) {
-  return THEME_PRESETS.find((theme) => theme.id === id) ?? null;
-}
 
-/** Never returns the theme already on screen, so every click visibly changes. */
+/**
+ * Called with no argument on page load, which puts every preset in the pool.
+ * Called with the current id from the button, which drops it so a click always
+ * visibly changes something.
+ */
 export function pickRandomTheme(currentId) {
   const pool = THEME_PRESETS.filter((theme) => theme.id !== currentId);
   return pool[Math.floor(Math.random() * pool.length)] ?? DEFAULT_THEME;
-}
-
-export function readStoredTheme() {
-  try {
-    return findTheme(window.localStorage.getItem(STORAGE_KEY)) ?? DEFAULT_THEME;
-  } catch {
-    // Private mode or blocked site data: fall back to the default palette.
-    return DEFAULT_THEME;
-  }
-}
-
-export function storeTheme(theme) {
-  try {
-    if (theme.id === DEFAULT_THEME.id) window.localStorage.removeItem(STORAGE_KEY);
-    else window.localStorage.setItem(STORAGE_KEY, theme.id);
-  } catch {
-    // Persistence is a convenience; ignore quota or permission failures.
-  }
 }
