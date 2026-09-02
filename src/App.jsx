@@ -1,7 +1,15 @@
 import Dither from "./components/Dither";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import VariableProximity from "./components/VariableProximity";
+import {
+  DEFAULT_THEME,
+  applyTheme,
+  pickRandomTheme,
+  readStoredTheme,
+  storeTheme,
+  themeToRgbTriple,
+} from "./theme";
 import {
   ArrowUpRight,
   ChevronDown,
@@ -13,6 +21,8 @@ import {
   Instagram,
   Linkedin,
   Mail,
+  RotateCcw,
+  Shuffle,
   X,
 } from "lucide-react";
 
@@ -72,6 +82,9 @@ export default function App() {
     width: typeof window === "undefined" ? 1280 : window.innerWidth,
     height: typeof window === "undefined" ? 800 : window.innerHeight,
   }));
+  const [theme, setTheme] = useState(() =>
+    typeof window === "undefined" ? DEFAULT_THEME : readStoredTheme()
+  );
   const prefersReducedMotion = useReducedMotion();
   const isPortrait = viewportSize.height > viewportSize.width;
   const isPhoneLayout = viewportSize.width <= 900 || (isPortrait && viewportSize.width <= 1200);
@@ -152,7 +165,7 @@ export default function App() {
       description:
         "A full-stack web application built for Hack the Future at Purdue, in service of the nonprofit Sheltering Wings.",
       tech: "React, MongoDB",
-      year: "PRESENT",
+      year: "2025 - 2026",
       details:
         "I am part of a team of 10 developers and 1 designer, with the goal of communicating with the nonprofit to build a product that would be useful to them. We are building a web app that serves as a chore tracking application, event scheduler / tracker, as well as a user manager. I am involved in both frontend and backend development, working on implementing features such as user authentication, database schema design, and various UI components. \n\nWe utilized MongoDB for the database design, as well as the Microsoft Calendar API for the calendar integration. The frontend is done primarily in React. This project is a great experience in terms of working with a team, communicating with a client, and building a full-stack application from start to finish. Due to the nature of this project, a public repository / link is not available.",
       repoUrl: "",
@@ -327,6 +340,29 @@ export default function App() {
     rail.atStart ? "black 0" : `transparent 0, black ${railFade}`
   }, ${rail.atEnd ? "black 100%" : `black calc(100% - ${railFade}), transparent 100%`})`;
 
+  // Layout effect, not a plain effect: the custom properties have to land
+  // before the first paint or the page flashes lavender on reload.
+  useLayoutEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
+
+  // Dither diffs this by value, but memoizing keeps the Canvas subtree out of
+  // re-renders driven by scroll and resize state.
+  const waveColor = useMemo(() => themeToRgbTriple(theme), [theme]);
+
+  const randomizeTheme = useCallback(() => {
+    setTheme((current) => {
+      const next = pickRandomTheme(current.id);
+      storeTheme(next);
+      return next;
+    });
+  }, []);
+
+  const resetTheme = useCallback(() => {
+    storeTheme(DEFAULT_THEME);
+    setTheme(DEFAULT_THEME);
+  }, []);
+
   const scrollRail = useCallback((direction) => {
     const viewport = projectsViewportRef.current;
     if (!viewport) return;
@@ -340,7 +376,7 @@ export default function App() {
       <div style={styles.pageBackground} aria-hidden="true">
         <div style={styles.ditherFrame}>
           <Dither
-            waveColor={[0.62, 0.44, 0.82]}
+            waveColor={waveColor}
             disableAnimation={false}
             enableMouseInteraction={false}
             mouseRadius={1}
@@ -395,6 +431,34 @@ export default function App() {
           </a>
         </div>
       </motion.nav>
+
+      <div style={{ ...styles.themeDock, ...(isPhoneLayout ? styles.themeDockPhone : {}) }}>
+        {theme.id !== DEFAULT_THEME.id ? (
+          <button
+            type="button"
+            className="pressable"
+            style={styles.themeReset}
+            onClick={resetTheme}
+            aria-label="Reset to the default color"
+            title="Reset color"
+          >
+            <RotateCcw size={13} aria-hidden="true" />
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="pressable"
+          style={styles.themeButton}
+          onClick={randomizeTheme}
+          aria-label={`Randomize site color. Current color: ${theme.name}`}
+        >
+          <Shuffle size={13} aria-hidden="true" />
+          {!isPhoneLayout ? <span>{theme.name}</span> : null}
+        </button>
+        <span className="sr-only" role="status" aria-live="polite">
+          {`Color: ${theme.name}`}
+        </span>
+      </div>
 
       <div style={{ ...styles.page, ...(isPhoneLayout ? styles.pagePhone : {}) }}>
         <header id="top" ref={containerRef} style={{ ...styles.landing, ...(isPhoneLayout ? styles.landingPhone : {}) }}>
@@ -868,9 +932,29 @@ export default function App() {
   );
 }
 
-const RULE = "rgba(198, 179, 230, 0.18)";
-const RULE_SOFT = "rgba(198, 179, 230, 0.1)";
-const PANEL_BG = "rgba(8, 9, 14, 0.58)";
+/**
+ * Palette helpers. Every accent below is the same hue at a different lightness
+ * and alpha, so they all resolve from --hue (see theme.js) and rotate together
+ * when the randomize button fires. --sat scales saturation per hue.
+ */
+const tint = (saturation, lightness, alpha) =>
+  `hsl(var(--hue) calc(${saturation}% * var(--sat)) ${lightness}%${
+    alpha === undefined ? "" : ` / ${alpha}`
+  })`;
+
+/**
+ * Panel and page grounds. These take the hue but skip the saturation scaling:
+ * at 2-7% lightness the tint is barely perceptible, and trimming it further
+ * would just flatten every palette to the same black.
+ */
+const shade = (saturation, lightness, alpha) =>
+  `hsl(var(--hue) ${saturation}% ${lightness}%${
+    alpha === undefined ? "" : ` / ${alpha}`
+  })`;
+
+const RULE = tint(50, 80, 0.18);
+const RULE_SOFT = tint(50, 80, 0.1);
+const PANEL_BG = shade(27, 4, 0.58);
 
 const styles = {
   pageBackground: {
@@ -879,7 +963,7 @@ const styles = {
     zIndex: 0,
     overflow: "hidden",
     pointerEvents: "none",
-    backgroundColor: "#070910",
+    backgroundColor: shade(39, 5),
   },
   ditherFrame: {
     position: "absolute",
@@ -893,7 +977,7 @@ const styles = {
   backgroundTint: {
     position: "absolute",
     inset: 0,
-    backgroundColor: "rgba(5, 6, 10, 0.66)",
+    backgroundColor: shade(33, 3, 0.66),
   },
   backgroundGrain: {
     position: "absolute",
@@ -917,7 +1001,7 @@ const styles = {
     width: "min(760px, calc(100% - 32px))",
     padding: "9px 10px 9px 18px",
     border: `1px solid ${RULE}`,
-    backgroundColor: "rgba(8, 9, 14, 0.9)",
+    backgroundColor: shade(27, 4, 0.9),
     backdropFilter: "blur(10px)",
     fontFamily: '"Geist Variable", sans-serif',
   },
@@ -928,7 +1012,7 @@ const styles = {
   },
   navBrand: {
     fontFamily: "var(--mono)",
-    color: "rgba(246, 243, 251, 0.9)",
+    color: tint(50, 97, 0.9),
     textDecoration: "none",
     fontSize: "0.78rem",
     letterSpacing: "0.04em",
@@ -944,7 +1028,7 @@ const styles = {
   },
   navLink: {
     fontFamily: "var(--mono)",
-    color: "rgba(228, 223, 240, 0.68)",
+    color: tint(36, 91, 0.68),
     textDecoration: "none",
     fontSize: "0.76rem",
     letterSpacing: "0.05em",
@@ -956,12 +1040,60 @@ const styles = {
     alignItems: "center",
     gap: "5px",
     padding: "7px 12px",
-    color: "#07070c",
-    backgroundColor: "rgba(222, 212, 240, 1)",
+    color: shade(26, 4),
+    backgroundColor: tint(48, 89),
     textDecoration: "none",
     fontSize: "0.74rem",
     letterSpacing: "0.05em",
     whiteSpace: "nowrap",
+  },
+
+  /* ---- Color randomizer, docked so it clears the hide-on-top nav ---- */
+  themeDock: {
+    position: "fixed",
+    right: "20px",
+    bottom: "20px",
+    zIndex: 16,
+    display: "flex",
+    alignItems: "stretch",
+    fontFamily: "var(--mono)",
+  },
+  themeDockPhone: {
+    right: "12px",
+    bottom: "12px",
+  },
+  themeButton: {
+    appearance: "none",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
+    minHeight: "32px",
+    padding: "0 12px",
+    border: `1px solid ${RULE}`,
+    backgroundColor: shade(27, 4, 0.9),
+    backdropFilter: "blur(10px)",
+    color: tint(50, 94),
+    cursor: "pointer",
+    fontFamily: "var(--mono)",
+    fontSize: "0.7rem",
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+    whiteSpace: "nowrap",
+  },
+  themeReset: {
+    appearance: "none",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "32px",
+    minHeight: "32px",
+    padding: 0,
+    marginRight: "-1px",
+    border: `1px solid ${RULE}`,
+    backgroundColor: shade(27, 4, 0.9),
+    backdropFilter: "blur(10px)",
+    color: tint(50, 94),
+    cursor: "pointer",
   },
 
   /* ---- Page shell ---- */
@@ -973,7 +1105,7 @@ const styles = {
     margin: "0 auto",
     padding: "0 32px 88px",
     lineHeight: 1.6,
-    color: "#ece7f7",
+    color: tint(50, 94),
   },
   pagePhone: {
     width: "100%",
@@ -1031,7 +1163,7 @@ const styles = {
     maxWidth: "700px",
     margin: "24px auto 0",
     fontSize: "1.08rem",
-    color: "rgba(236, 231, 247, 0.76)",
+    color: tint(50, 94, 0.76),
   },
   heroLeadPhone: {
     maxWidth: "100%",
@@ -1055,10 +1187,10 @@ const styles = {
     justifyContent: "center",
     gap: "7px",
     padding: "13px 26px",
-    border: "1px solid rgba(222, 212, 240, 1)",
+    border: `1px solid ${tint(48, 89)}`,
     textDecoration: "none",
-    color: "#07070c",
-    backgroundColor: "rgba(222, 212, 240, 1)",
+    color: shade(26, 4),
+    backgroundColor: tint(48, 89),
     fontSize: "0.8rem",
     letterSpacing: "0.06em",
     textTransform: "uppercase",
@@ -1073,8 +1205,8 @@ const styles = {
     border: `1px solid ${RULE}`,
     marginLeft: "-1px",
     textDecoration: "none",
-    color: "#ece7f7",
-    backgroundColor: "rgba(10, 10, 16, 0.45)",
+    color: tint(50, 94),
+    backgroundColor: shade(23, 5, 0.45),
     fontSize: "0.8rem",
     letterSpacing: "0.06em",
     textTransform: "uppercase",
@@ -1087,7 +1219,7 @@ const styles = {
     bottom: "26px",
     left: "50%",
     transform: "translateX(-50%)",
-    color: "rgba(214, 202, 235, 0.7)",
+    color: tint(45, 86, 0.7),
     textDecoration: "none",
     display: "flex",
     padding: "6px",
@@ -1142,17 +1274,17 @@ const styles = {
   },
   sectionNumber: {
     fontFamily: "var(--mono)",
-    color: "rgba(170, 130, 225, 0.6)",
+    color: tint(61, 70, 0.6),
     fontSize: "0.8rem",
     letterSpacing: "0.14em",
     flexShrink: 0,
   },
   bodyText: {
-    color: "rgba(228, 223, 240, 0.78)",
+    color: tint(36, 91, 0.78),
     maxWidth: "100%",
   },
   inlineLink: {
-    color: "rgba(214, 202, 235, 1)",
+    color: tint(45, 86),
     textDecoration: "underline",
     textUnderlineOffset: "3px",
   },
@@ -1170,7 +1302,7 @@ const styles = {
   },
   projectsIntro: {
     maxWidth: "640px",
-    color: "rgba(228, 223, 240, 0.74)",
+    color: tint(36, 91, 0.74),
   },
   railControls: {
     display: "flex",
@@ -1186,7 +1318,7 @@ const styles = {
     padding: 0,
     border: `1px solid ${RULE}`,
     backgroundColor: "transparent",
-    color: "#ece7f7",
+    color: tint(50, 94),
     cursor: "pointer",
     marginLeft: "-1px",
   },
@@ -1230,7 +1362,7 @@ const styles = {
     minHeight: "418px",
     height: "100%",
     border: `1px solid ${RULE}`,
-    backgroundColor: "rgba(9, 9, 15, 0.82)",
+    backgroundColor: shade(25, 5, 0.82),
     textAlign: "left",
     overflow: "hidden",
     display: "flex",
@@ -1246,7 +1378,7 @@ const styles = {
     aspectRatio: "16 / 10",
     overflow: "hidden",
     borderBottom: `1px solid ${RULE}`,
-    backgroundColor: "rgba(3, 3, 7, 0.9)",
+    backgroundColor: shade(40, 2, 0.9),
   },
   cardThumbImage: {
     width: "100%",
@@ -1267,7 +1399,7 @@ const styles = {
     fontFamily: "var(--mono)",
     display: "block",
     marginBottom: "10px",
-    color: "rgba(214, 205, 232, 0.5)",
+    color: tint(37, 86, 0.5),
     fontSize: "0.72rem",
     letterSpacing: "0.12em",
   },
@@ -1300,12 +1432,12 @@ const styles = {
     fontSize: "1.75rem",
     lineHeight: 1,
     letterSpacing: "-0.035em",
-    color: "#faf7ff",
+    color: tint(100, 98),
     fontFamily: '"Playfair Display", serif',
     fontWeight: 500,
   },
   cardDescription: {
-    color: "rgba(224, 217, 238, 0.7)",
+    color: tint(38, 89, 0.7),
     marginBottom: "16px",
     fontSize: "0.9rem",
   },
@@ -1316,7 +1448,7 @@ const styles = {
   },
   techLine: {
     fontFamily: "var(--mono)",
-    color: "rgba(236, 231, 247, 0.72)",
+    color: tint(50, 94, 0.72),
     fontSize: "0.68rem",
     lineHeight: 1.7,
   },
@@ -1342,9 +1474,9 @@ const styles = {
     overflow: "hidden",
     padding: "16px",
     border: `1px solid ${RULE}`,
-    backgroundColor: "rgba(9, 9, 15, 0.6)",
+    backgroundColor: shade(25, 5, 0.6),
     textDecoration: "none",
-    color: "#ece7f7",
+    color: tint(50, 94),
   },
   contactLabelRow: {
     display: "flex",
@@ -1353,12 +1485,12 @@ const styles = {
     minWidth: 0,
   },
   contactIcon: {
-    color: "rgba(196, 177, 226, 0.75)",
+    color: tint(46, 79, 0.75),
     flexShrink: 0,
   },
   contactLabel: {
     fontFamily: "var(--mono)",
-    color: "rgba(196, 177, 226, 0.72)",
+    color: tint(46, 79, 0.72),
     fontSize: "0.68rem",
     letterSpacing: "0.14em",
     textTransform: "uppercase",
@@ -1375,7 +1507,7 @@ const styles = {
     minWidth: 0,
   },
   contactValue: {
-    color: "rgba(246, 243, 251, 0.94)",
+    color: tint(50, 97, 0.94),
     fontSize: "0.9rem",
     lineHeight: 1.35,
     overflow: "hidden",
@@ -1384,7 +1516,7 @@ const styles = {
   },
   contactArrow: {
     flexShrink: 0,
-    color: "rgba(196, 177, 226, 0.55)",
+    color: tint(46, 79, 0.55),
   },
 
   /* ---- Project modal ---- */
@@ -1396,7 +1528,7 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     padding: "24px",
-    backgroundColor: "rgba(4, 4, 8, 0.78)",
+    backgroundColor: shade(33, 2, 0.78),
     backdropFilter: "blur(6px)",
   },
   modalOverlayPhone: {
@@ -1425,7 +1557,7 @@ const styles = {
     width: "220px",
     overflow: "hidden",
     border: `1px solid ${RULE}`,
-    backgroundColor: "rgba(10, 11, 16, 0.92)",
+    backgroundColor: shade(23, 5, 0.92),
     pointerEvents: "auto",
   },
   floatingMediaButton: {
@@ -1442,7 +1574,7 @@ const styles = {
     flexDirection: "column",
     gap: "10px",
     padding: "12px",
-    backgroundColor: "rgba(14, 15, 22, 0.95)",
+    backgroundColor: shade(22, 7, 0.95),
   },
   floatingImage: {
     width: "100%",
@@ -1452,7 +1584,7 @@ const styles = {
   },
   mediaCaption: {
     fontFamily: "var(--mono)",
-    color: "rgba(214, 202, 235, 0.72)",
+    color: tint(45, 86, 0.72),
     fontSize: "0.68rem",
     lineHeight: 1.5,
     textAlign: "left",
@@ -1461,7 +1593,7 @@ const styles = {
     width: "min(680px, 100%)",
     maxHeight: "min(88vh, 920px)",
     padding: "28px",
-    backgroundColor: "rgba(8, 9, 14, 0.98)",
+    backgroundColor: shade(27, 4, 0.98),
     border: `1px solid ${RULE}`,
     textAlign: "left",
     overflowY: "auto",
@@ -1483,7 +1615,7 @@ const styles = {
     margin: "-28px -28px 22px",
     padding: "16px 22px",
     borderBottom: `1px solid ${RULE_SOFT}`,
-    backgroundColor: "rgba(8, 9, 14, 0.98)",
+    backgroundColor: shade(27, 4, 0.98),
   },
   modalHeaderPhone: {
     top: "-22px",
@@ -1507,7 +1639,7 @@ const styles = {
     padding: 0,
     border: `1px solid ${RULE}`,
     backgroundColor: "transparent",
-    color: "#ece7f7",
+    color: tint(50, 94),
     cursor: "pointer",
   },
   modalTitle: {
@@ -1515,12 +1647,12 @@ const styles = {
     fontSize: "clamp(2.2rem, 5vw, 3.4rem)",
     lineHeight: 0.95,
     letterSpacing: "-0.045em",
-    color: "#faf7ff",
+    color: tint(100, 98),
     fontFamily: '"Playfair Display", serif',
     fontWeight: 500,
   },
   modalLead: {
-    color: "rgba(240, 236, 250, 0.9)",
+    color: tint(58, 95, 0.9),
     fontSize: "1.04rem",
     lineHeight: 1.55,
     marginBottom: "18px",
@@ -1537,9 +1669,9 @@ const styles = {
     gap: "8px",
     padding: "11px 18px",
     textDecoration: "none",
-    color: "#07070c",
-    backgroundColor: "rgba(222, 212, 240, 1)",
-    border: "1px solid rgba(222, 212, 240, 1)",
+    color: shade(26, 4),
+    backgroundColor: tint(48, 89),
+    border: `1px solid ${tint(48, 89)}`,
     fontSize: "0.74rem",
     letterSpacing: "0.06em",
     textTransform: "uppercase",
@@ -1551,7 +1683,7 @@ const styles = {
     gap: "8px",
     padding: "11px 18px",
     textDecoration: "none",
-    color: "#ece7f7",
+    color: tint(50, 94),
     backgroundColor: "transparent",
     border: `1px solid ${RULE}`,
     marginLeft: "-1px",
@@ -1565,7 +1697,7 @@ const styles = {
     backgroundColor: RULE_SOFT,
   },
   modalText: {
-    color: "rgba(228, 223, 240, 0.78)",
+    color: tint(36, 91, 0.78),
     marginBottom: "14px",
     whiteSpace: "pre-wrap",
   },
@@ -1578,7 +1710,7 @@ const styles = {
     fontSize: "0.76rem",
     letterSpacing: "0.14em",
     textTransform: "uppercase",
-    color: "rgba(236, 231, 247, 0.85)",
+    color: tint(50, 94, 0.85),
     fontWeight: 500,
   },
   playableFrame: {
@@ -1586,18 +1718,18 @@ const styles = {
     aspectRatio: "16 / 9",
     overflow: "hidden",
     border: `1px solid ${RULE}`,
-    backgroundColor: "rgba(12, 12, 18, 0.9)",
+    backgroundColor: shade(20, 6, 0.9),
   },
   playableEmbed: {
     width: "100%",
     height: "100%",
     border: "none",
     display: "block",
-    backgroundColor: "#090a0f",
+    backgroundColor: shade(25, 5),
   },
   playablePlaceholder: {
     border: `1px dashed ${RULE}`,
-    backgroundColor: "rgba(12, 12, 18, 0.86)",
+    backgroundColor: shade(20, 6, 0.86),
     padding: "20px",
   },
   modalMediaRail: {
@@ -1611,7 +1743,7 @@ const styles = {
     width: "100%",
     padding: 0,
     border: `1px solid ${RULE}`,
-    background: "rgba(10, 11, 16, 0.9)",
+    background: shade(23, 5, 0.9),
     overflow: "hidden",
     cursor: "pointer",
     textAlign: "left",
@@ -1621,7 +1753,7 @@ const styles = {
     flexDirection: "column",
     gap: "10px",
     padding: "12px",
-    backgroundColor: "rgba(14, 15, 22, 0.95)",
+    backgroundColor: shade(22, 7, 0.95),
   },
   modalMediaRailImage: {
     width: "100%",
@@ -1639,7 +1771,7 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     padding: "24px",
-    backgroundColor: "rgba(3, 3, 7, 0.92)",
+    backgroundColor: shade(40, 2, 0.92),
   },
   lightboxClose: {
     position: "absolute",
@@ -1654,7 +1786,7 @@ const styles = {
     padding: 0,
     border: `1px solid ${RULE}`,
     backgroundColor: "transparent",
-    color: "#ece7f7",
+    color: tint(50, 94),
     cursor: "pointer",
   },
   lightboxStage: {
@@ -1676,7 +1808,7 @@ const styles = {
   },
   lightboxCaption: {
     fontFamily: "var(--mono)",
-    color: "rgba(214, 202, 235, 0.78)",
+    color: tint(45, 86, 0.78),
     fontSize: "0.78rem",
     letterSpacing: "0.04em",
     textAlign: "center",

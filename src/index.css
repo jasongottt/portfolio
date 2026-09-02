@@ -5,6 +5,11 @@
 @import "@fontsource-variable/geist-mono";
 
 :root {
+  /* Rotation knobs for the whole palette. theme.js overrides these on the
+     root element; every accent below and in App.jsx derives from them. */
+  --hue: 262;
+  --sat: 1;
+
   --text: #6b6375;
   --text-h: #08060d;
   --bg: #fff;
@@ -134,7 +139,7 @@ h1,
 h2 {
   font-family: var(--heading);
   font-weight: 500;
-  color: #f6f3fb;
+  color: hsl(var(--hue) calc(50% * var(--sat)) 97%);
 }
 
 h1 {
@@ -261,9 +266,17 @@ code {
     background-color: var(--color-background);
     color: var(--color-foreground);
     background:
-      radial-gradient(circle at top right, rgba(135, 40, 175, 0.14), transparent 28%),
-      radial-gradient(circle at bottom left, rgba(102, 26, 150, 0.12), transparent 24%),
-      #030307;
+      radial-gradient(
+        circle at top right,
+        hsl(var(--hue) calc(63% * var(--sat)) 42% / 0.14),
+        transparent 28%
+      ),
+      radial-gradient(
+        circle at bottom left,
+        hsl(var(--hue) calc(71% * var(--sat)) 35% / 0.12),
+        transparent 24%
+      ),
+      hsl(var(--hue) 40% 2%);
   }
 
   html {
@@ -288,7 +301,7 @@ header[id] {
 
 a:focus-visible,
 button:focus-visible {
-  outline: 2px solid rgba(206, 189, 236, 0.85);
+  outline: 2px solid hsl(var(--hue) calc(55% * var(--sat)) 83% / 0.85);
   outline-offset: -2px;
 }
 
@@ -306,8 +319,8 @@ button:focus-visible {
     color 160ms ease;
 }
 .pressable:hover {
-  background-color: rgba(124, 73, 171, 0.22);
-  border-color: rgba(198, 179, 230, 0.42);
+  background-color: hsl(var(--hue) calc(40% * var(--sat)) 48% / 0.22);
+  border-color: hsl(var(--hue) calc(50% * var(--sat)) 80% / 0.42);
 }
 
 .project-card {
@@ -320,10 +333,10 @@ button:focus-visible {
 .card-link:hover .project-card,
 .card-link:focus-visible .project-card {
   background-image: linear-gradient(
-    rgba(124, 73, 171, 0.18),
-    rgba(124, 73, 171, 0.18)
+    hsl(var(--hue) calc(40% * var(--sat)) 48% / 0.18),
+    hsl(var(--hue) calc(40% * var(--sat)) 48% / 0.18)
   );
-  border-color: rgba(198, 179, 230, 0.42);
+  border-color: hsl(var(--hue) calc(50% * var(--sat)) 80% / 0.42);
 }
 .card-link .project-card h3 {
   transition: color 180ms ease;
@@ -339,8 +352,8 @@ button:focus-visible {
     border-color 180ms ease;
 }
 .contact-row:hover {
-  background-color: rgba(124, 73, 171, 0.16);
-  border-color: rgba(198, 179, 230, 0.4);
+  background-color: hsl(var(--hue) calc(40% * var(--sat)) 48% / 0.16);
+  border-color: hsl(var(--hue) calc(50% * var(--sat)) 80% / 0.4);
 }
 
 .rail-arrow {
@@ -350,8 +363,8 @@ button:focus-visible {
     border-color 160ms ease;
 }
 .rail-arrow:hover:not(:disabled) {
-  background-color: rgba(124, 73, 171, 0.22);
-  border-color: rgba(198, 179, 230, 0.4);
+  background-color: hsl(var(--hue) calc(40% * var(--sat)) 48% / 0.22);
+  border-color: hsl(var(--hue) calc(50% * var(--sat)) 80% / 0.4);
 }
 .rail-arrow:disabled {
   opacity: 0.22;
@@ -362,8 +375,8 @@ button:focus-visible {
   transition: background-color 160ms ease, border-color 160ms ease;
 }
 .icon-button:hover {
-  background-color: rgba(124, 73, 171, 0.22);
-  border-color: rgba(214, 202, 235, 0.5);
+  background-color: hsl(var(--hue) calc(40% * var(--sat)) 48% / 0.22);
+  border-color: hsl(var(--hue) calc(45% * var(--sat)) 86% / 0.5);
 }
 
 /* The tile's border lives on its parent, so highlight with an inset ring. */
@@ -371,7 +384,7 @@ button:focus-visible {
   transition: box-shadow 180ms ease;
 }
 .media-tile:hover {
-  box-shadow: inset 0 0 0 1px rgba(214, 202, 235, 0.5);
+  box-shadow: inset 0 0 0 1px hsl(var(--hue) calc(45% * var(--sat)) 86% / 0.5);
 }
 
 @media (prefers-reduced-motion: reduce) {
