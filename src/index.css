@@ -312,18 +312,24 @@ button:focus-visible {
 
 .project-card {
   transition:
-    background-color 180ms ease,
+    background-image 180ms ease,
     border-color 180ms ease;
 }
+/* Layer the violet over the card's own background rather than replacing it,
+   so the wash composites exactly as it did over the bare panel. */
 .card-link:hover .project-card,
 .card-link:focus-visible .project-card {
-  background-color: rgba(20, 15, 30, 0.86);
+  background-image: linear-gradient(
+    rgba(124, 73, 171, 0.18),
+    rgba(124, 73, 171, 0.18)
+  );
   border-color: rgba(198, 179, 230, 0.42);
 }
 .card-link .project-card h3 {
   transition: color 180ms ease;
 }
-.card-link:hover .project-card h3 {
+.card-link:hover .project-card h3,
+.card-link:focus-visible .project-card h3 {
   color: #ffffff;
 }
 

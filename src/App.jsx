@@ -528,15 +528,13 @@ export default function App() {
               >
                 <div style={styles.projectsTrack}>
                   {projects.map((project) => (
-                    <motion.button
+                    <button
                       key={project.title}
                       type="button"
                       data-project-card=""
                       className="card-link"
                       style={{ ...styles.cardLink, ...(isPhoneLayout ? styles.cardLinkPhone : {}) }}
                       onClick={() => setSelectedProject(project)}
-                      whileHover={prefersReducedMotion ? undefined : { y: -4 }}
-                      transition={{ type: "spring", stiffness: 260, damping: 24 }}
                       aria-label={`Open details for ${project.title}`}
                     >
                       <article
@@ -573,7 +571,7 @@ export default function App() {
                           </div>
                         </div>
                       </article>
-                    </motion.button>
+                    </button>
                   ))}
                 </div>
               </div>
