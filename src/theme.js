@@ -14,14 +14,26 @@
  */
 export const THEME_PRESETS = [
   { id: "lavender", name: "Lavender", hue: 262, sat: 1 },
+  { id: "amethyst", name: "Amethyst", hue: 274, sat: 1 },
   { id: "violet", name: "Violet", hue: 285, sat: 1 },
+  { id: "orchid", name: "Orchid", hue: 300, sat: 1 },
   { id: "magenta", name: "Magenta", hue: 318, sat: 0.96 },
+  { id: "rose", name: "Rose", hue: 334, sat: 0.98 },
   { id: "crimson", name: "Crimson", hue: 352, sat: 0.94 },
+  { id: "scarlet", name: "Scarlet", hue: 8, sat: 0.95 },
   { id: "ember", name: "Ember", hue: 24, sat: 0.88 },
   { id: "gold", name: "Gold", hue: 44, sat: 0.86 },
   { id: "teal", name: "Teal", hue: 186, sat: 0.94 },
+  { id: "cyan", name: "Cyan", hue: 194, sat: 0.92 },
   { id: "azure", name: "Azure", hue: 205, sat: 1 },
+  { id: "steel", name: "Steel", hue: 216, sat: 0.9 },
   { id: "indigo", name: "Indigo", hue: 232, sat: 1 },
+  { id: "periwinkle", name: "Periwinkle", hue: 246, sat: 1 },
+  // Two near-neutrals. The hue still drives everything, but at this little
+  // saturation the site reads as monochrome rather than tinted -- a genuinely
+  // different look rather than another point on the color wheel.
+  { id: "graphite", name: "Graphite", hue: 224, sat: 0.16 },
+  { id: "sand", name: "Sand", hue: 36, sat: 0.2 },
 ];
 
 export const DEFAULT_THEME = THEME_PRESETS[0];
@@ -29,9 +41,9 @@ export const DEFAULT_THEME = THEME_PRESETS[0];
 const STORAGE_KEY = "portfolio:theme";
 
 /**
- * The Dither background takes a raw RGB triple instead of CSS, so the shared
- * hue has to be converted by hand. Defaults match the wave color the site
- * shipped with: hsl(262 51% 63%).
+ * CSS consumes --hue directly, but the Dither background cannot: it takes a raw
+ * RGB triple. This is the one conversion, so the shader and the CSS borders
+ * stay in step. Defaults match the wave color the site shipped with.
  */
 export function themeToRgbTriple(theme, saturation = 0.51, lightness = 0.63) {
   const s = Math.min(1, saturation * theme.sat);

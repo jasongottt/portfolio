@@ -1,5 +1,4 @@
-import Dither from "./components/Dither";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import VariableProximity from "./components/VariableProximity";
 import {
@@ -10,6 +9,10 @@ import {
   storeTheme,
   themeToRgbTriple,
 } from "./theme";
+
+// Lazy so the three.js it pulls in loads after first paint rather than
+// blocking it. The static wash underneath covers the gap.
+const Dither = lazy(() => import("./components/Dither"));
 import {
   ArrowUpRight,
   ChevronDown,
@@ -374,18 +377,22 @@ export default function App() {
   return (
     <>
       <div style={styles.pageBackground} aria-hidden="true">
+        {/* Sits under the canvas so the lazy chunk's load is covered. */}
+        <div style={styles.backgroundStill} />
         <div style={styles.ditherFrame}>
-          <Dither
-            waveColor={waveColor}
-            disableAnimation={false}
-            enableMouseInteraction={false}
-            mouseRadius={1}
-            colorNum={4}
-            pixelSize={4}
-            waveAmplitude={0.08}
-            waveFrequency={3}
-            waveSpeed={0.05}
-          />
+          <Suspense fallback={null}>
+            <Dither
+              waveColor={waveColor}
+              disableAnimation={prefersReducedMotion}
+              enableMouseInteraction={false}
+              mouseRadius={1}
+              colorNum={4}
+              pixelSize={4}
+              waveAmplitude={0.08}
+              waveFrequency={3}
+              waveSpeed={0.05}
+            />
+          </Suspense>
         </div>
         <div style={styles.backgroundTint} />
         <div style={styles.backgroundGrain} />
@@ -973,6 +980,15 @@ const styles = {
     height: "100%",
     transform: "translate(-50%, -50%)",
     opacity: 0.95,
+  },
+  backgroundStill: {
+    position: "absolute",
+    inset: 0,
+    backgroundImage: `radial-gradient(circle at 50% 0%, ${tint(
+      55,
+      38,
+      0.55
+    )}, transparent 62%)`,
   },
   backgroundTint: {
     position: "absolute",
