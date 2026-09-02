@@ -1,8 +1,20 @@
 import Dither from "./components/Dither";
-import { useEffect, useRef, useState } from "react";
-import { motion } from "motion/react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import VariableProximity from "./components/VariableProximity";
-import { Github, Instagram, Linkedin, Mail } from "lucide-react";
+import {
+  ArrowUpRight,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  FileText,
+  Github,
+  Instagram,
+  Linkedin,
+  Mail,
+  X,
+} from "lucide-react";
 
 const floatingMediaPositions = [
   { top: "4%", left: "1.5%", rotate: "-8deg" },
@@ -11,17 +23,61 @@ const floatingMediaPositions = [
   { bottom: "10%", right: "3%", rotate: "6deg" },
 ];
 
+const navSections = [
+  { href: "#about", label: "About" },
+  { href: "#projects", label: "Projects" },
+  { href: "#contact", label: "Contact" },
+];
+
+const contactLinks = [
+  {
+    icon: Mail,
+    label: "Email",
+    value: "jgottes@purdue.edu",
+    href: "mailto:jgottes@purdue.edu",
+  },
+  {
+    icon: Github,
+    label: "GitHub",
+    value: "jasongottt",
+    href: "https://github.com/jasongottt",
+    external: true,
+  },
+  {
+    icon: Linkedin,
+    label: "LinkedIn",
+    value: "in/jasongottesman",
+    href: "https://www.linkedin.com/in/jasongottesman",
+    external: true,
+  },
+  {
+    icon: Instagram,
+    label: "Instagram",
+    value: "@jasongottt",
+    href: "https://www.instagram.com/jasongottt/",
+    external: true,
+  },
+];
+
+const resolveImagePath = (path) => (path.startsWith("/") ? path : `/${path}`);
+
 export default function App() {
   const containerRef = useRef(null);
   const projectsViewportRef = useRef(null);
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [navVisible, setNavVisible] = useState(false);
+  const [rail, setRail] = useState({ atStart: true, atEnd: false });
   const [viewportSize, setViewportSize] = useState(() => ({
     width: typeof window === "undefined" ? 1280 : window.innerWidth,
     height: typeof window === "undefined" ? 800 : window.innerHeight,
   }));
+  const prefersReducedMotion = useReducedMotion();
   const isPortrait = viewportSize.height > viewportSize.width;
   const isPhoneLayout = viewportSize.width <= 900 || (isPortrait && viewportSize.width <= 1200);
+  // Below this the four contact tracks get too narrow to show a full handle,
+  // so they fold to a balanced 2x2 instead of truncating.
+  const isNarrowDesktop = !isPhoneLayout && viewportSize.width < 1180;
   const projects = [
     {
       title: "Real Time Code Injection",
@@ -63,7 +119,8 @@ export default function App() {
       year: "2026",
       accent: "",
       details:
-        "This was a website made to practice React.js and Supabase, as well as to have a fun and visually interesting project to work on. The application features a custom drag-and-drop system for moving tasks between columns, as well as a unique visual design with various interactive elements. I implemented the backend using Supabase, which allowed me to quickly set up a database with various tables. The main unique feature of this project is the titular Spotlight, where the cursor is surrounded by a spotlight that illuminates and saturates the area around it, while the rest of the screen is darker and desaturated. This creates a unique visual effect and also helps to focus attention on the area around the cursor. Overall, this project was a great opportunity for me to practice my frontend and backend development skills, as well as to experiment with creative design ideas. This project is fully published online, and you can try it out at: \n\nhttps://spotlight-kanban-project.vercel.app/ \n\n NOTE: Due to how the free tier of Supabase works, the database will shut down after a week of inactivity. This will cause the board to fail to load.",
+        "This was a website made to practice React.js and Supabase, as well as to have a fun and visually interesting project to work on. The application features a custom drag-and-drop system for moving tasks between columns, as well as a unique visual design with various interactive elements. I implemented the backend using Supabase, which allowed me to quickly set up a database with various tables. The main unique feature of this project is the titular Spotlight, where the cursor is surrounded by a spotlight that illuminates and saturates the area around it, while the rest of the screen is darker and desaturated. This creates a unique visual effect and also helps to focus attention on the area around the cursor. Overall, this project was a great opportunity for me to practice my frontend and backend development skills, as well as to experiment with creative design ideas. This project is fully published online, and you can try it out with the live demo link above. \n\n NOTE: Due to how the free tier of Supabase works, the database will shut down after a week of inactivity. This will cause the board to fail to load.",
+      liveUrl: "https://spotlight-kanban-project.vercel.app/",
       repoUrl: "https://github.com/jasongottt/Spotlight.",
       screenshots: [
         { label: "Main board view", path: "/projects/spotlight1.png" },
@@ -167,15 +224,37 @@ export default function App() {
     const viewport = projectsViewportRef.current;
     if (!viewport) return;
 
+    const maxScroll = () => viewport.scrollWidth - viewport.clientWidth;
+
+    const syncRail = () => {
+      const max = maxScroll();
+      setRail({
+        atStart: viewport.scrollLeft <= 1,
+        atEnd: max <= 1 || viewport.scrollLeft >= max - 1,
+      });
+    };
+
     const onWheel = (event) => {
       if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      const max = maxScroll();
+      // Hand the gesture back to the page once the rail bottoms out, so
+      // hovering the cards can never stall vertical scrolling.
+      const atLeftEdge = event.deltaY < 0 && viewport.scrollLeft <= 0;
+      const atRightEdge = event.deltaY > 0 && viewport.scrollLeft >= max - 1;
+      if (atLeftEdge || atRightEdge) return;
       event.preventDefault();
-      viewport.scrollLeft += event.deltaY;
+      viewport.scrollLeft = Math.min(max, Math.max(0, viewport.scrollLeft + event.deltaY));
     };
+
+    syncRail();
     viewport.addEventListener("wheel", onWheel, { passive: false });
+    viewport.addEventListener("scroll", syncRail, { passive: true });
+    window.addEventListener("resize", syncRail);
 
     return () => {
       viewport.removeEventListener("wheel", onWheel);
+      viewport.removeEventListener("scroll", syncRail);
+      window.removeEventListener("resize", syncRail);
     };
   }, []);
 
@@ -188,6 +267,72 @@ export default function App() {
 
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // Reveal the nav once the hero itself is behind you. Measuring the header
+  // rather than the viewport keeps the trigger honest on phones, where the
+  // hero is far shorter than one screen.
+  useEffect(() => {
+    const onScroll = () => {
+      const heroHeight = containerRef.current?.offsetHeight ?? window.innerHeight;
+      setNavVisible(window.scrollY > heroHeight * 0.6);
+    };
+
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, []);
+
+  // Escape closes the topmost layer: lightbox first, then the project modal.
+  useEffect(() => {
+    if (!selectedProject && !selectedImage) return;
+
+    const onKeyDown = (event) => {
+      if (event.key !== "Escape") return;
+      if (selectedImage) setSelectedImage(null);
+      else setSelectedProject(null);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedProject, selectedImage]);
+
+  // Freeze the page behind an open overlay, compensating for the scrollbar
+  // so the layout doesn't jump sideways as it disappears.
+  useEffect(() => {
+    if (!selectedProject && !selectedImage) return;
+
+    const { body } = document;
+    const previousOverflow = body.style.overflow;
+    const previousPadding = body.style.paddingRight;
+    const gutter = window.innerWidth - document.documentElement.clientWidth;
+
+    body.style.overflow = "hidden";
+    if (gutter > 0) body.style.paddingRight = `${gutter}px`;
+
+    return () => {
+      body.style.overflow = previousOverflow;
+      body.style.paddingRight = previousPadding;
+    };
+  }, [selectedProject, selectedImage]);
+
+  // Fade the rail's own pixels rather than overlaying a gradient — the panel
+  // sits on a translucent background, so an opaque overlay would never match.
+  const railFade = isPhoneLayout ? "36px" : "52px";
+  const railMask = `linear-gradient(to right, ${
+    rail.atStart ? "black 0" : `transparent 0, black ${railFade}`
+  }, ${rail.atEnd ? "black 100%" : `black calc(100% - ${railFade}), transparent 100%`})`;
+
+  const scrollRail = useCallback((direction) => {
+    const viewport = projectsViewportRef.current;
+    if (!viewport) return;
+    const card = viewport.querySelector("[data-project-card]");
+    const step = card ? card.getBoundingClientRect().width + 20 : 340;
+    viewport.scrollBy({ left: direction * step, behavior: "smooth" });
   }, []);
 
   return (
@@ -210,8 +355,49 @@ export default function App() {
         <div style={styles.backgroundTint} />
       </div>
 
+      <motion.nav
+        style={{
+          ...styles.nav,
+          ...(isPhoneLayout ? styles.navPhone : {}),
+          pointerEvents: navVisible ? "auto" : "none",
+        }}
+        initial={false}
+        animate={{ y: navVisible ? 0 : -72, opacity: navVisible ? 1 : 0 }}
+        transition={{ type: "spring", stiffness: 320, damping: 32 }}
+        inert={!navVisible}
+        aria-label="Section navigation"
+      >
+        {!isPhoneLayout ? (
+          <a href="#top" className="nav-link" style={styles.navBrand}>
+            Jason Gottesman
+          </a>
+        ) : null}
+        <div style={{ ...styles.navLinks, ...(isPhoneLayout ? styles.navLinksPhone : {}) }}>
+          {navSections.map((section) => (
+            <a
+              key={section.href}
+              href={section.href}
+              className="nav-link"
+              style={styles.navLink}
+            >
+              {section.label}
+            </a>
+          ))}
+          <a
+            href="/resume.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="pressable"
+            style={styles.navResume}
+          >
+            Resume
+            <ArrowUpRight size={14} aria-hidden="true" />
+          </a>
+        </div>
+      </motion.nav>
+
       <div style={{ ...styles.page, ...(isPhoneLayout ? styles.pagePhone : {}) }}>
-        <header ref={containerRef} style={{ ...styles.landing, ...(isPhoneLayout ? styles.landingPhone : {}) }}>
+        <header id="top" ref={containerRef} style={{ ...styles.landing, ...(isPhoneLayout ? styles.landingPhone : {}) }}>
           <div style={{ ...styles.heroShell, ...(isPhoneLayout ? styles.heroShellPhone : {}) }}>
             <h1 style={{ ...styles.hello, ...(isPhoneLayout ? styles.helloPhone : {}) }}>
               {isPhoneLayout ? (
@@ -234,24 +420,44 @@ export default function App() {
             </p>
 
             <div style={{ ...styles.actions, ...(isPhoneLayout ? styles.actionsPhone : {}) }}>
-              <a href="#projects" style={styles.buttonPrimary}>
+              <a href="#projects" className="pressable" style={styles.buttonPrimary}>
                 Projects
               </a>
-              <a href="#contact" style={styles.buttonSecondary}>
+              <a href="#contact" className="pressable" style={styles.buttonSecondary}>
                 Contact
               </a>
-              <a href="/resume.pdf" style={styles.buttonSecondary}>
+              <a
+                href="/resume.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="pressable"
+                style={styles.buttonSecondary}
+              >
                 Resume
+                <ArrowUpRight size={15} aria-hidden="true" style={styles.buttonIcon} />
               </a>
             </div>
           </div>
+
+          {!isPhoneLayout ? (
+            <motion.a
+              href="#about"
+              style={styles.scrollCue}
+              aria-label="Scroll to about section"
+              animate={
+                prefersReducedMotion ? { opacity: 0.6 } : { y: [0, 7, 0], opacity: [0.45, 0.8, 0.45] }
+              }
+              transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <ChevronDown size={22} aria-hidden="true" />
+            </motion.a>
+          ) : null}
         </header>
 
         <main style={styles.content}>
-          <section style={{ ...styles.sectionPanel, ...(isPhoneLayout ? styles.panelPhone : {}) }}>
+          <section id="about" style={{ ...styles.sectionPanel, ...(isPhoneLayout ? styles.panelPhone : {}) }}>
             <div style={styles.sectionHeader}>
               <h2>About</h2>
-              <span style={styles.sectionLabel}>WHO AM I?</span>
             </div>
             <p style={styles.bodyText}>
               I'm Jason, a student at Purdue University. I am majoring in Computer Science with a concentration in 
@@ -261,53 +467,97 @@ export default function App() {
             </p>
             <br />
             <p style={styles.bodyText}>
-              Outside of development, I enjoy playing video games, especially ones with strong narrative and unique mechanics. I love hiking and exploring outdoors, and I spend a lot of time volunteering for Purdue's Dance Marathon, which raises money for the Riley Hospital for Children. If you'd be interested in donating there, <a href="https://events.dancemarathon.com/participants/jasongott" target="_blank" rel="noopener noreferrer"style={{ textDecoration: 'underline', color: 'rgba(214, 202, 235, 1)' }}> here's my fundraising page!</a>
+              Outside of development, I enjoy playing video games, especially ones with strong narrative and unique mechanics. I love hiking and exploring outdoors, and I spend a lot of time volunteering for Purdue's Dance Marathon, which raises money for the Riley Hospital for Children. If you'd be interested in donating there,{" "}
+              <a
+                href="https://events.dancemarathon.com/participants/jasongott"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={styles.inlineLink}
+              >
+                here's my fundraising page!
+              </a>
             </p>
           </section>
 
           <section id="projects" style={{ ...styles.projectsSection, ...(isPhoneLayout ? styles.panelPhone : {}) }}>
             <div style={styles.sectionHeader}>
               <h2>Projects</h2>
-              <span style={styles.sectionLabel}>WHAT CAN I MAKE?</span>
             </div>
-            <p style={styles.projectsIntro}>
-              A selection of projects I've made, some are marked as playable in-browser games.
-            </p>
-            <div ref={projectsViewportRef} style={{ ...styles.projectsViewport, ...(isPhoneLayout ? styles.projectsViewportPhone : {}) }}>
-              <div style={styles.projectsTrack}>
-                {projects.map((project) => (
-                  <motion.button
-                    key={project.title}
+            <div style={styles.projectsIntroRow}>
+              <p style={styles.projectsIntro}>
+                A selection of projects I've made, some are marked as playable in-browser games.
+              </p>
+              {!isPhoneLayout ? (
+                <div style={styles.railControls}>
+                  <button
                     type="button"
-                    style={{ ...styles.cardLink, ...(isPhoneLayout ? styles.cardLinkPhone : {}) }}
-                    onClick={() => setSelectedProject(project)}
-                    whileHover={{ y: -4 }}
-                    transition={{ type: "spring", stiffness: 260, damping: 24 }}
+                    className="rail-arrow"
+                    style={styles.railArrow}
+                    onClick={() => scrollRail(-1)}
+                    disabled={rail.atStart}
+                    aria-label="Scroll to previous projects"
                   >
-                    <article style={{ ...styles.card, ...(isPhoneLayout ? styles.cardPhone : {}) }}>
-                      <div style={styles.cardTopRow}>
-                        <span style={styles.cardYear}>{project.year}</span>
-                        <span
-                          style={{
-                            ...styles.cardAccent,
-                            visibility: project.accent ? "visible" : "hidden",
-                          }}
-                        >
-                          {project.accent || "Playable!"}
-                        </span>
-                      </div>
-                      <motion.h3 style={styles.cardTitle}>
-                        {project.title}
-                      </motion.h3>
-                      <motion.p style={styles.cardDescription}>
-                        {project.description}
-                      </motion.p>
-                      <p style={styles.cardTech}>
-                        <strong>Made with:</strong> {project.tech}
-                      </p>
-                    </article>
-                  </motion.button>
-                ))}
+                    <ChevronLeft size={18} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className="rail-arrow"
+                    style={styles.railArrow}
+                    onClick={() => scrollRail(1)}
+                    disabled={rail.atEnd}
+                    aria-label="Scroll to more projects"
+                  >
+                    <ChevronRight size={18} aria-hidden="true" />
+                  </button>
+                </div>
+              ) : null}
+            </div>
+            <div style={styles.railShell}>
+              <div
+                ref={projectsViewportRef}
+                style={{
+                  ...styles.projectsViewport,
+                  ...(isPhoneLayout ? styles.projectsViewportPhone : {}),
+                  maskImage: railMask,
+                  WebkitMaskImage: railMask,
+                }}
+              >
+                <div style={styles.projectsTrack}>
+                  {projects.map((project) => (
+                    <motion.button
+                      key={project.title}
+                      type="button"
+                      data-project-card=""
+                      className="card-link"
+                      style={{ ...styles.cardLink, ...(isPhoneLayout ? styles.cardLinkPhone : {}) }}
+                      onClick={() => setSelectedProject(project)}
+                      whileHover={prefersReducedMotion ? undefined : { y: -6 }}
+                      transition={{ type: "spring", stiffness: 260, damping: 24 }}
+                      aria-label={`Open details for ${project.title}`}
+                    >
+                      <article
+                        className="project-card"
+                        style={{ ...styles.card, ...(isPhoneLayout ? styles.cardPhone : {}) }}
+                      >
+                        <div style={styles.cardTopRow}>
+                          <span style={styles.cardYear}>{project.year}</span>
+                          {project.accent ? (
+                            <span style={styles.cardAccent}>{project.accent}</span>
+                          ) : null}
+                        </div>
+                        <h3 style={styles.cardTitle}>{project.title}</h3>
+                        <p style={styles.cardDescription}>{project.description}</p>
+                        <div style={styles.techRow}>
+                          {project.tech.split(",").map((item) => (
+                            <span key={item} style={styles.techChip}>
+                              {item.trim()}
+                            </span>
+                          ))}
+                        </div>
+                      </article>
+                    </motion.button>
+                  ))}
+                </div>
               </div>
             </div>
           </section>
@@ -315,21 +565,41 @@ export default function App() {
           <section id="contact" style={{ ...styles.contactSection, ...(isPhoneLayout ? styles.panelPhone : {}) }}>
             <div style={styles.sectionHeader}>
               <h2>Contact</h2>
-              <span style={styles.sectionLabel}>WHERE CAN YOU CONNECT WITH ME?</span>
             </div>
-            <div style={{ ...styles.contactGrid, ...(isPhoneLayout ? styles.contactGridPhone : {}) }}>
-              <a href="mailto:jgottes@purdue.edu" style={styles.contactCard}>
-                <Mail size={48} style={styles.contactIcon} />
-              </a>
-              <a href="https://github.com/jasongottt" style={styles.contactCard}>
-                <Github size={48} style={styles.contactIcon} />
-              </a>
-              <a href="https://www.linkedin.com/in/jasongottesman" style={styles.contactCard}>
-                <Linkedin size={48} style={styles.contactIcon} />
-              </a>
-              <a href="https://www.instagram.com/jasongottt/" style={styles.contactCard}>
-                <Instagram size={48} style={styles.contactIcon} />
-              </a>
+            <p style={styles.contactIntro}>
+              The fastest way to reach me is email — but I'm around in all of these places.
+            </p>
+            <div
+              style={{
+                ...styles.contactGrid,
+                ...(isNarrowDesktop ? styles.contactGridNarrow : {}),
+                ...(isPhoneLayout ? styles.contactGridPhone : {}),
+              }}
+            >
+              {contactLinks.map(({ icon: Icon, label, value, href, external }) => (
+                <a
+                  key={label}
+                  href={href}
+                  className="contact-row"
+                  style={styles.contactCard}
+                  {...(external
+                    ? { target: "_blank", rel: "noopener noreferrer" }
+                    : {})}
+                >
+                  <span style={styles.contactIconWrap}>
+                    <Icon size={20} style={styles.contactIcon} aria-hidden="true" />
+                  </span>
+                  <span style={styles.contactCopy}>
+                    <span style={styles.contactLabel}>{label}</span>
+                    <span style={styles.contactValue}>{value}</span>
+                  </span>
+                  <ArrowUpRight
+                    size={16}
+                    style={styles.contactArrow}
+                    aria-hidden="true"
+                  />
+                </a>
+              ))}
             </div>
           </section>
         </main>
@@ -345,6 +615,9 @@ export default function App() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.22, ease: "easeOut" }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="project-modal-title"
         >
           <div
             style={{
@@ -364,7 +637,7 @@ export default function App() {
                 initial={{ opacity: 0, y: 24, scale: 0.92 }}
                 animate={{
                   opacity: 1,
-                  y: [320, 300, 320],
+                  y: prefersReducedMotion ? 310 : [320, 300, 320],
                   rotate: floatingMediaPositions[index % floatingMediaPositions.length].rotate,
                   scale: 1,
                 }}
@@ -373,7 +646,7 @@ export default function App() {
                   scale: { duration: 0.24 },
                   y: {
                     duration: 5 + index,
-                    repeat: Infinity,
+                    repeat: prefersReducedMotion ? 0 : Infinity,
                     ease: "easeInOut",
                   },
                   rotate: { duration: 0.24 },
@@ -381,21 +654,24 @@ export default function App() {
               >
                 <button
                   type="button"
+                  className="media-tile"
                   style={styles.floatingMediaButton}
                   onClick={() =>
                     setSelectedImage({
                       label: image.label,
-                      path: image.path.startsWith("/") ? image.path : `/${image.path}`,
+                      path: resolveImagePath(image.path),
                     })
                   }
+                  aria-label={`Enlarge screenshot: ${image.label}`}
                 >
                   <div style={styles.floatingMediaInner}>
                     <img
-                      src={image.path.startsWith("/") ? image.path : `/${image.path}`}
+                      src={resolveImagePath(image.path)}
                       alt={image.label}
+                      loading="lazy"
                       style={styles.floatingImage}
                     />
-                    <span style={styles.mediaPlaceholderPath}>{image.label}</span>
+                    <span style={styles.mediaCaption}>{image.label}</span>
                   </div>
                 </button>
               </motion.div>
@@ -410,57 +686,88 @@ export default function App() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ type: "spring", stiffness: 230, damping: 24 }}
             >
-              <button
-                type="button"
-                style={styles.modalClose}
-                onClick={() => setSelectedProject(null)}
-                aria-label="Close project details"
+              <div
+                style={{
+                  ...styles.modalHeader,
+                  ...(isPhoneLayout ? styles.modalHeaderPhone : {}),
+                }}
               >
-                X
-              </button>
-              <div style={styles.modalMetaRow}>
-                <span style={styles.cardYear}>{selectedProject.year}</span>
-                {selectedProject.accent ? (
-                  <span style={styles.cardAccent}>{selectedProject.accent}</span>
-                ) : null}
+                <div style={styles.modalMetaRow}>
+                  <span style={styles.cardYear}>{selectedProject.year}</span>
+                  {selectedProject.accent ? (
+                    <span style={styles.cardAccent}>{selectedProject.accent}</span>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  className="icon-button"
+                  style={styles.modalClose}
+                  onClick={() => setSelectedProject(null)}
+                  aria-label="Close project details"
+                >
+                  <X size={18} aria-hidden="true" />
+                </button>
               </div>
-              <motion.h3 style={styles.modalTitle}>
+
+              <h3 id="project-modal-title" style={styles.modalTitle}>
                 {selectedProject.title}
-              </motion.h3>
-              <motion.p style={styles.modalText}>
-                {selectedProject.description}
-              </motion.p>
-              <p style={styles.modalText}>
-                {selectedProject.details}
-                {selectedProject.readMoreUrl ? (
-                  <>
-                    {" "}
+              </h3>
+              <p style={styles.modalLead}>{selectedProject.description}</p>
+
+              <div style={styles.techRow}>
+                {selectedProject.tech.split(",").map((item) => (
+                  <span key={item} style={styles.techChip}>
+                    {item.trim()}
+                  </span>
+                ))}
+              </div>
+
+              {selectedProject.repoUrl ||
+              selectedProject.liveUrl ||
+              selectedProject.readMoreUrl ? (
+                <div style={styles.modalActions}>
+                  {selectedProject.liveUrl ? (
+                    <a
+                      href={selectedProject.liveUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="pressable"
+                      style={styles.modalActionPrimary}
+                    >
+                      <ExternalLink size={16} aria-hidden="true" />
+                      Live demo
+                    </a>
+                  ) : null}
+                  {selectedProject.repoUrl ? (
+                    <a
+                      href={selectedProject.repoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="pressable"
+                      style={styles.modalActionButton}
+                    >
+                      <Github size={16} aria-hidden="true" />
+                      Source
+                    </a>
+                  ) : null}
+                  {selectedProject.readMoreUrl ? (
                     <a
                       href={selectedProject.readMoreUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={styles.inlineLink}
+                      className="pressable"
+                      style={styles.modalActionButton}
                     >
-                      Read more here.
+                      <FileText size={16} aria-hidden="true" />
+                      Write-up
                     </a>
-                  </>
-                ) : null}
-              </p>
-              <div style={styles.modalActions}>
-                {selectedProject.repoUrl ? (
-                  <a
-                    href={selectedProject.repoUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={styles.modalActionButton}
-                  >
-                    <Github size={20} color="#f3effc" />
-                  </a>
-                ) : null}
-              </div>
-              <p style={styles.modalTech}>
-                <strong>Made with:</strong> {selectedProject.tech}
-              </p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <div style={styles.modalDivider} />
+
+              <p style={styles.modalText}>{selectedProject.details}</p>
 
               {selectedProject.playableEmbed ? (
                 <div style={styles.modalSection}>
@@ -494,17 +801,19 @@ export default function App() {
                     onClick={() =>
                       setSelectedImage({
                         label: image.label,
-                        path: image.path.startsWith("/") ? image.path : `/${image.path}`,
+                        path: resolveImagePath(image.path),
                       })
                     }
+                    aria-label={`Enlarge screenshot: ${image.label}`}
                   >
                     <div style={styles.modalMediaRailInner}>
                       <img
-                        src={image.path.startsWith("/") ? image.path : `/${image.path}`}
+                        src={resolveImagePath(image.path)}
                         alt={image.label}
+                        loading="lazy"
                         style={styles.modalMediaRailImage}
                       />
-                      <span style={styles.mediaPlaceholderPath}>{image.label}</span>
+                      <span style={styles.mediaCaption}>{image.label}</span>
                     </div>
                   </button>
                 ))}
@@ -515,22 +824,30 @@ export default function App() {
       ) : null}
 
       {selectedImage ? (
-        <div style={styles.lightboxOverlay} onClick={() => setSelectedImage(null)}>
+        <div
+          style={styles.lightboxOverlay}
+          onClick={() => setSelectedImage(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={selectedImage.label}
+        >
           <button
             type="button"
+            className="icon-button"
             style={styles.lightboxClose}
             onClick={() => setSelectedImage(null)}
             aria-label="Close image preview"
           >
-            X
+            <X size={18} aria-hidden="true" />
           </button>
-          <div style={styles.lightboxStage} onClick={(event) => event.stopPropagation()}>
+          <figure style={styles.lightboxStage} onClick={(event) => event.stopPropagation()}>
             <img
               src={selectedImage.path}
               alt={selectedImage.label}
               style={styles.lightboxImage}
             />
-          </div>
+            <figcaption style={styles.lightboxCaption}>{selectedImage.label}</figcaption>
+          </figure>
         </div>
       ) : null}
     </>
@@ -581,12 +898,83 @@ const styles = {
     boxSizing: "border-box",
     padding: "0 16px 56px",
   },
+  nav: {
+    position: "fixed",
+    top: "16px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    zIndex: 15,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "28px",
+    width: "min(760px, calc(100% - 32px))",
+    padding: "10px 12px 10px 20px",
+    borderRadius: "999px",
+    border: "1px solid rgba(198, 179, 230, 0.16)",
+    backgroundColor: "rgba(9, 10, 16, 0.72)",
+    boxShadow: "0 14px 40px rgba(0, 0, 0, 0.34)",
+    backdropFilter: "blur(14px)",
+    fontFamily: '"Geist Variable", sans-serif',
+  },
+  navPhone: {
+    width: "calc(100% - 24px)",
+    justifyContent: "center",
+    padding: "8px 10px",
+  },
+  navBrand: {
+    color: "rgba(246, 243, 251, 0.92)",
+    textDecoration: "none",
+    fontSize: "0.92rem",
+    fontWeight: 600,
+    letterSpacing: "-0.01em",
+    whiteSpace: "nowrap",
+  },
+  navLinks: {
+    display: "flex",
+    alignItems: "center",
+    gap: "18px",
+  },
+  navLinksPhone: {
+    gap: "12px",
+    fontSize: "0.85rem",
+  },
+  navLink: {
+    color: "rgba(228, 223, 240, 0.74)",
+    textDecoration: "none",
+    fontSize: "0.9rem",
+    whiteSpace: "nowrap",
+  },
+  navResume: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "5px",
+    padding: "7px 14px",
+    borderRadius: "999px",
+    color: "#06060b",
+    backgroundColor: "rgba(214, 202, 235, 1)",
+    textDecoration: "none",
+    fontSize: "0.86rem",
+    fontWeight: 650,
+    whiteSpace: "nowrap",
+  },
   landing: {
+    position: "relative",
     minHeight: "100svh",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     textAlign: "center",
+  },
+  scrollCue: {
+    position: "absolute",
+    bottom: "28px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    color: "rgba(214, 202, 235, 0.75)",
+    textDecoration: "none",
+    display: "flex",
+    padding: "6px",
   },
   landingPhone: {
     minHeight: "auto",
@@ -652,6 +1040,10 @@ const styles = {
     alignItems: "stretch",
   },
   buttonPrimary: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "7px",
     padding: "12px 22px",
     border: "1px solid rgba(214, 202, 235, 0.7)",
     textDecoration: "none",
@@ -662,6 +1054,10 @@ const styles = {
     boxShadow: "0 12px 28px rgba(175, 130, 225, 0.24)",
   },
   buttonSecondary: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "7px",
     padding: "12px 22px",
     border: "1px solid rgba(184, 166, 214, 0.34)",
     textDecoration: "none",
@@ -670,6 +1066,9 @@ const styles = {
     borderRadius: "999px",
     fontWeight: 500,
     backdropFilter: "blur(12px)",
+  },
+  buttonIcon: {
+    opacity: 0.7,
   },
   projectsSection: {
     position: "relative",
@@ -698,10 +1097,12 @@ const styles = {
   },
   sectionHeader: {
     display: "flex",
-    alignItems: "center",
+    alignItems: "baseline",
     justifyContent: "space-between",
     gap: "16px",
-    marginBottom: "18px",
+    marginBottom: "22px",
+    paddingBottom: "14px",
+    borderBottom: "1px solid rgba(198, 179, 230, 0.14)",
     flexWrap: "wrap",
   },
   sectionLabel: {
@@ -714,12 +1115,66 @@ const styles = {
     color: "rgba(228, 223, 240, 0.76)",
     maxWidth: "100%",
   },
-  projectsIntro: {
+  projectsIntroRow: {
     position: "relative",
     zIndex: 1,
-    maxWidth: "700px",
-    marginBottom: "22px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "24px",
+    marginBottom: "6px",
+    flexWrap: "wrap",
+  },
+  projectsIntro: {
+    maxWidth: "620px",
     color: "rgba(228, 223, 240, 0.74)",
+  },
+  railControls: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    flexShrink: 0,
+  },
+  railCount: {
+    marginRight: "6px",
+    color: "rgba(196, 177, 226, 0.6)",
+    fontSize: "0.76rem",
+    letterSpacing: "0.16em",
+    textTransform: "uppercase",
+  },
+  railArrow: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "34px",
+    height: "34px",
+    padding: 0,
+    borderRadius: "999px",
+    border: "1px solid rgba(184, 166, 214, 0.28)",
+    backgroundColor: "rgba(124, 73, 171, 0.14)",
+    color: "#ece7f7",
+    cursor: "pointer",
+  },
+  railShell: {
+    position: "relative",
+    zIndex: 1,
+  },
+  techRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "6px",
+    marginTop: "auto",
+  },
+  techChip: {
+    padding: "4px 10px",
+    borderRadius: "999px",
+    border: "1px solid rgba(184, 166, 214, 0.22)",
+    backgroundColor: "rgba(124, 73, 171, 0.14)",
+    color: "rgba(236, 231, 247, 0.86)",
+    fontSize: "0.74rem",
+    letterSpacing: "0.02em",
+    lineHeight: 1.5,
+    whiteSpace: "nowrap",
   },
   projectsViewport: {
     position: "relative",
@@ -803,12 +1258,8 @@ const styles = {
   },
   cardDescription: {
     color: "rgba(224, 217, 238, 0.72)",
-    marginBottom: "14px",
-    flexGrow: 1,
-  },
-  cardTech: {
-    color: "rgba(242, 238, 248, 0.88)",
     marginBottom: "18px",
+    fontSize: "0.95rem",
   },
   contactSection: {
     marginTop: "44px",
@@ -819,31 +1270,81 @@ const styles = {
     boxShadow: "0 18px 50px rgba(0, 0, 0, 0.22)",
     backdropFilter: "blur(8px)",
   },
+  contactIntro: {
+    maxWidth: "620px",
+    marginBottom: "22px",
+    color: "rgba(228, 223, 240, 0.74)",
+  },
   contactGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-    gap: "32px",
-    marginTop: "10px",
+    // Four fixed tracks rather than auto-fit, so the row never breaks into a
+    // 3 + 1 orphan. minmax(0, ...) lets tracks shrink below their content.
+    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+    gap: "12px",
+  },
+  contactGridNarrow: {
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
   },
   contactGridPhone: {
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-    gap: "16px",
+    gridTemplateColumns: "minmax(0, 1fr)",
+    gap: "10px",
   },
   contactCard: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
-    padding: "18px",
-    borderRadius: "18px",
+    gap: "10px",
+    minWidth: 0,
+    overflow: "hidden",
+    padding: "13px",
+    borderRadius: "16px",
     textDecoration: "none",
     color: "#ece7f7",
-    background: "rgba(98, 48, 143, 0.08)",
-    border: "1px solid rgba(168, 145, 203, 0.14)",
+    background: "rgba(98, 48, 143, 0.1)",
+    border: "1px solid rgba(168, 145, 203, 0.16)",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
-    minHeight: "72px",
+  },
+  contactIconWrap: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    width: "34px",
+    height: "34px",
+    borderRadius: "11px",
+    border: "1px solid rgba(184, 166, 214, 0.2)",
+    backgroundColor: "rgba(124, 73, 171, 0.18)",
   },
   contactIcon: {
     color: "#f3effc",
+  },
+  contactCopy: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "2px",
+    minWidth: 0,
+    flexGrow: 1,
+  },
+  contactLabel: {
+    color: "rgba(196, 177, 226, 0.7)",
+    fontSize: "0.68rem",
+    letterSpacing: "0.14em",
+    textTransform: "uppercase",
+    lineHeight: 1.4,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  contactValue: {
+    color: "rgba(246, 243, 251, 0.94)",
+    fontSize: "0.88rem",
+    lineHeight: 1.35,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  contactArrow: {
+    flexShrink: 0,
+    color: "rgba(196, 177, 226, 0.6)",
   },
   modalOverlay: {
     position: "fixed",
@@ -962,23 +1463,58 @@ const styles = {
     borderRadius: "12px",
     display: "block",
   },
+  modalHeader: {
+    position: "sticky",
+    top: "-28px",
+    zIndex: 2,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "16px",
+    margin: "-28px -28px 18px",
+    padding: "18px 24px 14px",
+    borderRadius: "24px 24px 0 0",
+    borderBottom: "1px solid rgba(198, 179, 230, 0.12)",
+    backgroundColor: "rgba(8, 9, 14, 0.95)",
+    backdropFilter: "blur(10px)",
+  },
+  modalHeaderPhone: {
+    top: "-22px",
+    margin: "-22px -18px 16px",
+    padding: "16px 18px 12px",
+    borderRadius: "20px 20px 0 0",
+  },
   modalClose: {
     appearance: "none",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    width: "34px",
+    height: "34px",
+    padding: 0,
     borderRadius: "999px",
+    border: "1px solid rgba(184, 166, 214, 0.28)",
+    backgroundColor: "rgba(124, 73, 171, 0.14)",
     color: "#ece7f7",
     cursor: "pointer",
-    display: "block",
-    fontWeight: 600,
-    marginLeft: "auto",
-    marginBottom: "18px",
-    padding: "0px 16px",
   },
   modalMetaRow: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: "12px",
-    marginBottom: "12px",
+    gap: "14px",
+    minWidth: 0,
+  },
+  modalDivider: {
+    height: "1px",
+    margin: "24px 0 20px",
+    backgroundColor: "rgba(198, 179, 230, 0.12)",
+  },
+  modalLead: {
+    color: "rgba(240, 236, 250, 0.92)",
+    fontSize: "1.06rem",
+    lineHeight: 1.55,
+    marginBottom: "18px",
   },
   modalTitle: {
     margin: "0 0 12px",
@@ -1000,19 +1536,35 @@ const styles = {
   },
   modalActions: {
     display: "flex",
-    gap: "12px",
+    gap: "10px",
     flexWrap: "wrap",
-    marginBottom: "24px",
+    marginTop: "20px",
+  },
+  modalActionPrimary: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "10px 18px",
+    borderRadius: "999px",
+    textDecoration: "none",
+    color: "#06060b",
+    backgroundColor: "rgba(214, 202, 235, 1)",
+    border: "1px solid rgba(214, 202, 235, 0.7)",
+    fontSize: "0.9rem",
+    fontWeight: 650,
   },
   modalActionButton: {
     display: "inline-flex",
     alignItems: "center",
-    justifyContent: "center",
-    padding: "10px 10px",
+    gap: "8px",
+    padding: "10px 18px",
     borderRadius: "999px",
     textDecoration: "none",
-    border: "1px solid rgba(214, 202, 235, 0.3)",
-    fontWeight: 700,
+    color: "#ece7f7",
+    backgroundColor: "rgba(124, 73, 171, 0.14)",
+    border: "1px solid rgba(184, 166, 214, 0.3)",
+    fontSize: "0.9rem",
+    fontWeight: 500,
   },
   modalSection: {
     marginTop: "24px",
@@ -1024,10 +1576,11 @@ const styles = {
     textTransform: "uppercase",
     color: "rgba(236, 231, 247, 0.9)",
   },
-  mediaPlaceholderPath: {
-    color: "rgba(196, 177, 226, 0.72)",
-    fontSize: "0.82rem",
-    wordBreak: "break-all",
+  mediaCaption: {
+    color: "rgba(214, 202, 235, 0.78)",
+    fontSize: "0.8rem",
+    lineHeight: 1.4,
+    textAlign: "left",
   },
   lightboxOverlay: {
     position: "fixed",
@@ -1045,20 +1598,32 @@ const styles = {
     top: "24px",
     right: "24px",
     appearance: "none",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "40px",
+    height: "40px",
+    padding: 0,
     border: "1px solid rgba(184, 166, 214, 0.34)",
-    backgroundColor: "rgba(124, 73, 171, 0.12)",
+    backgroundColor: "rgba(124, 73, 171, 0.16)",
     color: "#ece7f7",
     borderRadius: "999px",
     cursor: "pointer",
-    fontWeight: 700,
-    padding: "10px 16px",
   },
   lightboxStage: {
     width: "min(1200px, 100%)",
     maxHeight: "100%",
+    margin: 0,
     display: "flex",
+    flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
+    gap: "14px",
+  },
+  lightboxCaption: {
+    color: "rgba(214, 202, 235, 0.8)",
+    fontSize: "0.9rem",
+    textAlign: "center",
   },
   lightboxImage: {
     maxWidth: "100%",
@@ -1089,9 +1654,5 @@ const styles = {
     border: "1px dashed rgba(184, 166, 214, 0.34)",
     backgroundColor: "rgba(12, 12, 18, 0.86)",
     padding: "20px",
-  },
-  modalTech: {
-    color: "rgba(242, 238, 248, 0.88)",
-    marginTop: "20px",
   },
 };

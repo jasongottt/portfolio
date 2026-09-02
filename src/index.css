@@ -269,3 +269,140 @@ code {
     font-family: var(--font-sans);
   }
 }
+
+/* ------------------------------------------------------------------ *
+ *  Interaction states
+ *  App.jsx styles elements inline, which can't express :hover or
+ *  :focus-visible. The interactive pieces carry these classes so the
+ *  states live here instead.
+ * ------------------------------------------------------------------ */
+
+html {
+  scroll-behavior: smooth;
+}
+
+section[id],
+header[id] {
+  scroll-margin-top: 96px;
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid rgba(206, 189, 236, 0.85);
+  outline-offset: 3px;
+}
+
+.pressable {
+  transition:
+    transform 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+.pressable:hover {
+  transform: translateY(-2px);
+}
+.pressable:active {
+  transform: translateY(0);
+}
+
+.nav-link {
+  position: relative;
+  transition: color 160ms ease;
+}
+.nav-link:hover {
+  color: #ffffff;
+}
+.nav-link::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: -5px;
+  height: 1px;
+  background: rgba(214, 202, 235, 0.85);
+  transform: scaleX(0);
+  transition: transform 200ms ease;
+}
+.nav-link:hover::after {
+  transform: scaleX(1);
+}
+
+.project-card {
+  transition:
+    border-color 200ms ease,
+    background-color 200ms ease,
+    box-shadow 200ms ease;
+}
+.card-link:hover .project-card,
+.card-link:focus-visible .project-card {
+  border-color: rgba(198, 179, 230, 0.42);
+  background-color: rgba(14, 13, 22, 0.84);
+  box-shadow:
+    0 22px 54px rgba(0, 0, 0, 0.34),
+    inset 0 0 0 1px rgba(170, 130, 225, 0.12);
+}
+
+.contact-row {
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease;
+}
+.contact-row:hover {
+  background: rgba(124, 73, 171, 0.18);
+  border-color: rgba(198, 179, 230, 0.34);
+  transform: translateY(-2px);
+}
+
+.rail-arrow {
+  transition:
+    opacity 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+.rail-arrow:hover:not(:disabled) {
+  background: rgba(124, 73, 171, 0.3);
+  border-color: rgba(198, 179, 230, 0.44);
+}
+.rail-arrow:disabled {
+  opacity: 0.2;
+  cursor: default;
+}
+
+.icon-button {
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+.icon-button:hover {
+  background: rgba(124, 73, 171, 0.26);
+  border-color: rgba(214, 202, 235, 0.55);
+}
+
+.media-tile {
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+.media-tile:hover {
+  border-color: rgba(214, 202, 235, 0.45);
+  box-shadow: 0 26px 54px rgba(0, 0, 0, 0.4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .pressable:hover,
+  .contact-row:hover {
+    transform: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
