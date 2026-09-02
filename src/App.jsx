@@ -351,8 +351,8 @@ export default function App() {
             waveSpeed={0.05}
           />
         </div>
-        <div style={styles.backgroundGrid} />
         <div style={styles.backgroundTint} />
+        <div style={styles.backgroundGrain} />
       </div>
 
       <motion.nav
@@ -362,7 +362,7 @@ export default function App() {
           pointerEvents: navVisible ? "auto" : "none",
         }}
         initial={false}
-        animate={{ y: navVisible ? 0 : -72, opacity: navVisible ? 1 : 0 }}
+        animate={{ y: navVisible ? 0 : -80, opacity: navVisible ? 1 : 0 }}
         transition={{ type: "spring", stiffness: 320, damping: 32 }}
         inert={!navVisible}
         aria-label="Section navigation"
@@ -391,7 +391,7 @@ export default function App() {
             style={styles.navResume}
           >
             Resume
-            <ArrowUpRight size={14} aria-hidden="true" />
+            <ArrowUpRight size={13} aria-hidden="true" />
           </a>
         </div>
       </motion.nav>
@@ -457,7 +457,9 @@ export default function App() {
         <main style={styles.content}>
           <section id="about" style={{ ...styles.sectionPanel, ...(isPhoneLayout ? styles.panelPhone : {}) }}>
             <div style={styles.sectionHeader}>
-              <h2>About</h2>
+              <div style={styles.sectionTitleGroup}>
+                <h2>About</h2>
+              </div>
             </div>
             <p style={styles.bodyText}>
               I'm Jason, a student at Purdue University. I am majoring in Computer Science with a concentration in 
@@ -481,7 +483,9 @@ export default function App() {
 
           <section id="projects" style={{ ...styles.projectsSection, ...(isPhoneLayout ? styles.panelPhone : {}) }}>
             <div style={styles.sectionHeader}>
-              <h2>Projects</h2>
+              <div style={styles.sectionTitleGroup}>
+                <h2>Projects</h2>
+              </div>
             </div>
             <div style={styles.projectsIntroRow}>
               <p style={styles.projectsIntro}>
@@ -531,7 +535,7 @@ export default function App() {
                       className="card-link"
                       style={{ ...styles.cardLink, ...(isPhoneLayout ? styles.cardLinkPhone : {}) }}
                       onClick={() => setSelectedProject(project)}
-                      whileHover={prefersReducedMotion ? undefined : { y: -6 }}
+                      whileHover={prefersReducedMotion ? undefined : { y: -4 }}
                       transition={{ type: "spring", stiffness: 260, damping: 24 }}
                       aria-label={`Open details for ${project.title}`}
                     >
@@ -539,20 +543,34 @@ export default function App() {
                         className="project-card"
                         style={{ ...styles.card, ...(isPhoneLayout ? styles.cardPhone : {}) }}
                       >
-                        <div style={styles.cardTopRow}>
-                          <span style={styles.cardYear}>{project.year}</span>
+                        <div style={styles.cardThumb}>
+                          <img
+                            src={resolveImagePath(project.screenshots[0].path)}
+                            alt=""
+                            loading="lazy"
+                            style={styles.cardThumbImage}
+                          />
                           {project.accent ? (
-                            <span style={styles.cardAccent}>{project.accent}</span>
+                            <span style={styles.cardAccent}>
+                              <span style={styles.accentDot} aria-hidden="true" />
+                              {project.accent}
+                            </span>
                           ) : null}
                         </div>
-                        <h3 style={styles.cardTitle}>{project.title}</h3>
-                        <p style={styles.cardDescription}>{project.description}</p>
-                        <div style={styles.techRow}>
-                          {project.tech.split(",").map((item) => (
-                            <span key={item} style={styles.techChip}>
-                              {item.trim()}
-                            </span>
-                          ))}
+                        <div
+                          style={{
+                            ...styles.cardBody,
+                            ...(isPhoneLayout ? styles.cardBodyPhone : {}),
+                          }}
+                        >
+                          <span style={styles.cardYear}>{project.year}</span>
+                          <h3 style={styles.cardTitle}>{project.title}</h3>
+                          <p style={styles.cardDescription}>{project.description}</p>
+                          <div style={styles.techRow}>
+                            <p style={styles.techLine}>
+                              {project.tech.split(",").map((item) => item.trim()).join("  /  ")}
+                            </p>
+                          </div>
                         </div>
                       </article>
                     </motion.button>
@@ -564,11 +582,10 @@ export default function App() {
 
           <section id="contact" style={{ ...styles.contactSection, ...(isPhoneLayout ? styles.panelPhone : {}) }}>
             <div style={styles.sectionHeader}>
-              <h2>Contact</h2>
+              <div style={styles.sectionTitleGroup}>
+                <h2>Contact</h2>
+              </div>
             </div>
-            <p style={styles.contactIntro}>
-              The fastest way to reach me is email — but I'm around in all of these places.
-            </p>
             <div
               style={{
                 ...styles.contactGrid,
@@ -586,18 +603,18 @@ export default function App() {
                     ? { target: "_blank", rel: "noopener noreferrer" }
                     : {})}
                 >
-                  <span style={styles.contactIconWrap}>
-                    <Icon size={20} style={styles.contactIcon} aria-hidden="true" />
-                  </span>
-                  <span style={styles.contactCopy}>
+                  <span style={styles.contactLabelRow}>
+                    <Icon size={13} style={styles.contactIcon} aria-hidden="true" />
                     <span style={styles.contactLabel}>{label}</span>
-                    <span style={styles.contactValue}>{value}</span>
                   </span>
-                  <ArrowUpRight
-                    size={16}
-                    style={styles.contactArrow}
-                    aria-hidden="true"
-                  />
+                  <span style={styles.contactValueRow}>
+                    <span style={styles.contactValue}>{value}</span>
+                    <ArrowUpRight
+                      size={14}
+                      style={styles.contactArrow}
+                      aria-hidden="true"
+                    />
+                  </span>
                 </a>
               ))}
             </div>
@@ -695,7 +712,10 @@ export default function App() {
                 <div style={styles.modalMetaRow}>
                   <span style={styles.cardYear}>{selectedProject.year}</span>
                   {selectedProject.accent ? (
-                    <span style={styles.cardAccent}>{selectedProject.accent}</span>
+                    <span style={styles.cardAccent}>
+                              <span style={styles.accentDot} aria-hidden="true" />
+                              {selectedProject.accent}
+                            </span>
                   ) : null}
                 </div>
                 <button
@@ -714,13 +734,9 @@ export default function App() {
               </h3>
               <p style={styles.modalLead}>{selectedProject.description}</p>
 
-              <div style={styles.techRow}>
-                {selectedProject.tech.split(",").map((item) => (
-                  <span key={item} style={styles.techChip}>
-                    {item.trim()}
-                  </span>
-                ))}
-              </div>
+              <p style={styles.techLine}>
+                {selectedProject.tech.split(",").map((item) => item.trim()).join("  /  ")}
+              </p>
 
               {selectedProject.repoUrl ||
               selectedProject.liveUrl ||
@@ -854,6 +870,10 @@ export default function App() {
   );
 }
 
+const RULE = "rgba(198, 179, 230, 0.18)";
+const RULE_SOFT = "rgba(198, 179, 230, 0.1)";
+const PANEL_BG = "rgba(8, 9, 14, 0.58)";
+
 const styles = {
   pageBackground: {
     position: "fixed",
@@ -872,17 +892,81 @@ const styles = {
     transform: "translate(-50%, -50%)",
     opacity: 0.95,
   },
-  backgroundGrid: {
-    position: "absolute",
-    inset: 0,
-    backgroundColor: "rgba(255,255,255,0.03)",
-    opacity: 0.08,
-  },
   backgroundTint: {
     position: "absolute",
     inset: 0,
-    backgroundColor: "rgba(5, 6, 10, 0.72)",
+    backgroundColor: "rgba(5, 6, 10, 0.66)",
   },
+  backgroundGrain: {
+    position: "absolute",
+    inset: 0,
+    opacity: 0.05,
+    backgroundImage:
+      "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E\")",
+  },
+
+  /* ---- Floating nav, squared ---- */
+  nav: {
+    position: "fixed",
+    top: "16px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    zIndex: 15,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "28px",
+    width: "min(760px, calc(100% - 32px))",
+    padding: "9px 10px 9px 18px",
+    border: `1px solid ${RULE}`,
+    backgroundColor: "rgba(8, 9, 14, 0.9)",
+    backdropFilter: "blur(10px)",
+    fontFamily: '"Geist Variable", sans-serif',
+  },
+  navPhone: {
+    width: "calc(100% - 24px)",
+    justifyContent: "center",
+    padding: "8px 10px",
+  },
+  navBrand: {
+    fontFamily: "var(--mono)",
+    color: "rgba(246, 243, 251, 0.9)",
+    textDecoration: "none",
+    fontSize: "0.78rem",
+    letterSpacing: "0.04em",
+    whiteSpace: "nowrap",
+  },
+  navLinks: {
+    display: "flex",
+    alignItems: "center",
+    gap: "22px",
+  },
+  navLinksPhone: {
+    gap: "14px",
+  },
+  navLink: {
+    fontFamily: "var(--mono)",
+    color: "rgba(228, 223, 240, 0.68)",
+    textDecoration: "none",
+    fontSize: "0.76rem",
+    letterSpacing: "0.05em",
+    whiteSpace: "nowrap",
+  },
+  navResume: {
+    fontFamily: "var(--mono)",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "5px",
+    padding: "7px 12px",
+    color: "#07070c",
+    backgroundColor: "rgba(222, 212, 240, 1)",
+    textDecoration: "none",
+    fontSize: "0.74rem",
+    letterSpacing: "0.05em",
+    whiteSpace: "nowrap",
+  },
+
+  /* ---- Page shell ---- */
   page: {
     position: "relative",
     zIndex: 1,
@@ -898,66 +982,8 @@ const styles = {
     boxSizing: "border-box",
     padding: "0 16px 56px",
   },
-  nav: {
-    position: "fixed",
-    top: "16px",
-    left: "50%",
-    transform: "translateX(-50%)",
-    zIndex: 15,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: "28px",
-    width: "min(760px, calc(100% - 32px))",
-    padding: "10px 12px 10px 20px",
-    borderRadius: "999px",
-    border: "1px solid rgba(198, 179, 230, 0.16)",
-    backgroundColor: "rgba(9, 10, 16, 0.72)",
-    boxShadow: "0 14px 40px rgba(0, 0, 0, 0.34)",
-    backdropFilter: "blur(14px)",
-    fontFamily: '"Geist Variable", sans-serif',
-  },
-  navPhone: {
-    width: "calc(100% - 24px)",
-    justifyContent: "center",
-    padding: "8px 10px",
-  },
-  navBrand: {
-    color: "rgba(246, 243, 251, 0.92)",
-    textDecoration: "none",
-    fontSize: "0.92rem",
-    fontWeight: 600,
-    letterSpacing: "-0.01em",
-    whiteSpace: "nowrap",
-  },
-  navLinks: {
-    display: "flex",
-    alignItems: "center",
-    gap: "18px",
-  },
-  navLinksPhone: {
-    gap: "12px",
-    fontSize: "0.85rem",
-  },
-  navLink: {
-    color: "rgba(228, 223, 240, 0.74)",
-    textDecoration: "none",
-    fontSize: "0.9rem",
-    whiteSpace: "nowrap",
-  },
-  navResume: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "5px",
-    padding: "7px 14px",
-    borderRadius: "999px",
-    color: "#06060b",
-    backgroundColor: "rgba(214, 202, 235, 1)",
-    textDecoration: "none",
-    fontSize: "0.86rem",
-    fontWeight: 650,
-    whiteSpace: "nowrap",
-  },
+
+  /* ---- Hero ---- */
   landing: {
     position: "relative",
     minHeight: "100svh",
@@ -966,57 +992,47 @@ const styles = {
     justifyContent: "center",
     textAlign: "center",
   },
-  scrollCue: {
-    position: "absolute",
-    bottom: "28px",
-    left: "50%",
-    transform: "translateX(-50%)",
-    color: "rgba(214, 202, 235, 0.75)",
-    textDecoration: "none",
-    display: "flex",
-    padding: "6px",
-  },
   landingPhone: {
     minHeight: "auto",
-    paddingTop: "20px",
+    paddingTop: "80px",
+    paddingBottom: "40px",
   },
   heroShell: {
     width: "100%",
-    maxWidth: "980px",
-    padding: "36px 28px",
-    border: "1px solid rgba(198, 179, 230, 0.14)",
-    borderRadius: "28px",
-    backgroundColor: "rgba(8, 9, 14, 0.48)",
-    boxShadow: "0 18px 50px rgba(0, 0, 0, 0.22)",
+    maxWidth: "1140px",
+    // Size container: the name below is sized in cqi so it always fits on
+    // one line, at any viewport, without hand-tuned breakpoints.
+    containerType: "inline-size",
+    padding: "40px 30px",
+    border: `1px solid ${RULE}`,
+    backgroundColor: PANEL_BG,
     backdropFilter: "blur(8px)",
   },
   heroShellPhone: {
-    padding: "24px 18px",
-    borderRadius: "22px",
+    padding: "26px 18px",
   },
   hello: {
-    fontSize: "clamp(4.5rem, 8vw, 8rem)",
+    fontSize: "13cqi",
+    whiteSpace: "nowrap",
     color: "white",
     margin: 0,
-    lineHeight: 0.95,
-    letterSpacing: "-0.06em",
+    lineHeight: 1.05,
+    letterSpacing: "-0.055em",
     fontWeight: 650,
     textAlign: "center",
   },
   helloPhone: {
-    fontSize: "clamp(2.5rem, 12vw, 4rem)",
-    lineHeight: 1,
+    lineHeight: 1.1,
     letterSpacing: "-0.04em",
   },
   heroTitleStatic: {
     display: "block",
     width: "100%",
-    overflowWrap: "anywhere",
   },
   heroLead: {
-    maxWidth: "760px",
-    margin: "22px auto 0",
-    fontSize: "1.12rem",
+    maxWidth: "700px",
+    margin: "24px auto 0",
+    fontSize: "1.08rem",
     color: "rgba(236, 231, 247, 0.76)",
   },
   heroLeadPhone: {
@@ -1024,76 +1040,91 @@ const styles = {
     marginTop: "16px",
     fontSize: "1rem",
   },
-  content: {
-    paddingTop: "20px",
-  },
   actions: {
     display: "flex",
     justifyContent: "center",
-    gap: "14px",
-    marginTop: "28px",
+    marginTop: "30px",
     flexWrap: "wrap",
   },
   actionsPhone: {
-    gap: "10px",
     flexDirection: "column",
     alignItems: "stretch",
   },
   buttonPrimary: {
+    fontFamily: "var(--mono)",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
     gap: "7px",
-    padding: "12px 22px",
-    border: "1px solid rgba(214, 202, 235, 0.7)",
+    padding: "13px 26px",
+    border: "1px solid rgba(222, 212, 240, 1)",
     textDecoration: "none",
-    color: "#06060b",
-    backgroundColor: "rgba(214, 202, 235, 1)",
-    borderRadius: "999px",
-    fontWeight: 700,
-    boxShadow: "0 12px 28px rgba(175, 130, 225, 0.24)",
+    color: "#07070c",
+    backgroundColor: "rgba(222, 212, 240, 1)",
+    fontSize: "0.8rem",
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
   },
   buttonSecondary: {
+    fontFamily: "var(--mono)",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
     gap: "7px",
-    padding: "12px 22px",
-    border: "1px solid rgba(184, 166, 214, 0.34)",
+    padding: "13px 26px",
+    border: `1px solid ${RULE}`,
+    marginLeft: "-1px",
     textDecoration: "none",
     color: "#ece7f7",
-    backgroundColor: "rgba(124, 73, 171, 0.12)",
-    borderRadius: "999px",
-    fontWeight: 500,
-    backdropFilter: "blur(12px)",
+    backgroundColor: "rgba(10, 10, 16, 0.45)",
+    fontSize: "0.8rem",
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
   },
   buttonIcon: {
-    opacity: 0.7,
+    opacity: 0.6,
+  },
+  scrollCue: {
+    position: "absolute",
+    bottom: "26px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    color: "rgba(214, 202, 235, 0.7)",
+    textDecoration: "none",
+    display: "flex",
+    padding: "6px",
+  },
+
+  /* ---- Section panels: discrete boxes again, squared ---- */
+  content: {
+    paddingTop: "20px",
+  },
+  sectionPanel: {
+    marginTop: "40px",
+    padding: "32px 36px 36px",
+    border: `1px solid ${RULE}`,
+    backgroundColor: PANEL_BG,
+    backdropFilter: "blur(8px)",
   },
   projectsSection: {
     position: "relative",
-    marginTop: "44px",
-    padding: "34px 38px 38px",
-    borderRadius: "24px",
+    marginTop: "40px",
+    padding: "32px 36px 36px",
     overflow: "hidden",
-    backgroundColor: "rgba(8, 9, 14, 0.48)",
-    border: "1px solid rgba(198, 179, 230, 0.14)",
-    boxShadow: "0 18px 50px rgba(0, 0, 0, 0.22)",
+    border: `1px solid ${RULE}`,
+    backgroundColor: PANEL_BG,
     backdropFilter: "blur(8px)",
   },
-  sectionPanel: {
-    marginTop: "44px",
-    padding: "34px 38px",
-    borderRadius: "24px",
-    backgroundColor: "rgba(8, 9, 14, 0.48)",
-    border: "1px solid rgba(198, 179, 230, 0.14)",
-    boxShadow: "0 18px 50px rgba(0, 0, 0, 0.22)",
+  contactSection: {
+    marginTop: "40px",
+    padding: "32px 36px 36px",
+    border: `1px solid ${RULE}`,
+    backgroundColor: PANEL_BG,
     backdropFilter: "blur(8px)",
   },
   panelPhone: {
-    marginTop: "28px",
-    padding: "22px 18px",
-    borderRadius: "20px",
+    marginTop: "26px",
+    padding: "22px 18px 24px",
   },
   sectionHeader: {
     display: "flex",
@@ -1102,19 +1133,33 @@ const styles = {
     gap: "16px",
     marginBottom: "22px",
     paddingBottom: "14px",
-    borderBottom: "1px solid rgba(198, 179, 230, 0.14)",
+    borderBottom: `1px solid ${RULE_SOFT}`,
     flexWrap: "wrap",
   },
-  sectionLabel: {
-    color: "rgba(196, 177, 226, 0.72)",
-    fontSize: "0.76rem",
-    letterSpacing: "0.24em",
-    textTransform: "uppercase",
+  sectionTitleGroup: {
+    display: "flex",
+    alignItems: "baseline",
+    gap: "14px",
+    minWidth: 0,
+  },
+  sectionNumber: {
+    fontFamily: "var(--mono)",
+    color: "rgba(170, 130, 225, 0.6)",
+    fontSize: "0.8rem",
+    letterSpacing: "0.14em",
+    flexShrink: 0,
   },
   bodyText: {
-    color: "rgba(228, 223, 240, 0.76)",
+    color: "rgba(228, 223, 240, 0.78)",
     maxWidth: "100%",
   },
+  inlineLink: {
+    color: "rgba(214, 202, 235, 1)",
+    textDecoration: "underline",
+    textUnderlineOffset: "3px",
+  },
+
+  /* ---- Projects ---- */
   projectsIntroRow: {
     position: "relative",
     zIndex: 1,
@@ -1122,76 +1167,48 @@ const styles = {
     alignItems: "center",
     justifyContent: "space-between",
     gap: "24px",
-    marginBottom: "6px",
+    marginBottom: "22px",
     flexWrap: "wrap",
   },
   projectsIntro: {
-    maxWidth: "620px",
+    maxWidth: "640px",
     color: "rgba(228, 223, 240, 0.74)",
   },
   railControls: {
     display: "flex",
     alignItems: "center",
-    gap: "8px",
     flexShrink: 0,
-  },
-  railCount: {
-    marginRight: "6px",
-    color: "rgba(196, 177, 226, 0.6)",
-    fontSize: "0.76rem",
-    letterSpacing: "0.16em",
-    textTransform: "uppercase",
   },
   railArrow: {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    width: "34px",
-    height: "34px",
+    width: "36px",
+    height: "32px",
     padding: 0,
-    borderRadius: "999px",
-    border: "1px solid rgba(184, 166, 214, 0.28)",
-    backgroundColor: "rgba(124, 73, 171, 0.14)",
+    border: `1px solid ${RULE}`,
+    backgroundColor: "transparent",
     color: "#ece7f7",
     cursor: "pointer",
+    marginLeft: "-1px",
   },
   railShell: {
     position: "relative",
     zIndex: 1,
   },
-  techRow: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "6px",
-    marginTop: "auto",
-  },
-  techChip: {
-    padding: "4px 10px",
-    borderRadius: "999px",
-    border: "1px solid rgba(184, 166, 214, 0.22)",
-    backgroundColor: "rgba(124, 73, 171, 0.14)",
-    color: "rgba(236, 231, 247, 0.86)",
-    fontSize: "0.74rem",
-    letterSpacing: "0.02em",
-    lineHeight: 1.5,
-    whiteSpace: "nowrap",
-  },
   projectsViewport: {
-    position: "relative",
-    zIndex: 1,
-    marginTop: "16px",
     overflowX: "auto",
     overflowY: "hidden",
-    paddingBottom: "10px",
+    paddingBottom: "8px",
     scrollbarWidth: "none",
     msOverflowStyle: "none",
   },
   projectsViewportPhone: {
-    paddingBottom: "6px",
+    paddingBottom: "4px",
   },
   projectsTrack: {
     display: "flex",
-    gap: "20px",
+    gap: "18px",
     width: "max-content",
     minWidth: "100%",
   },
@@ -1202,7 +1219,7 @@ const styles = {
     color: "inherit",
     cursor: "pointer",
     display: "block",
-    flex: "0 0 320px",
+    flex: "0 0 300px",
     padding: 0,
     textAlign: "inherit",
   },
@@ -1211,13 +1228,11 @@ const styles = {
   },
   card: {
     position: "relative",
-    width: "320px",
-    minHeight: "280px",
-    padding: "28px 26px",
-    border: "1px solid rgba(180, 159, 214, 0.16)",
-    borderRadius: "20px",
-    backgroundColor: "rgba(8, 8, 13, 0.72)",
-    boxShadow: "0 18px 44px rgba(0, 0, 0, 0.24)",
+    width: "300px",
+    minHeight: "418px",
+    height: "100%",
+    border: `1px solid ${RULE}`,
+    backgroundColor: "rgba(9, 9, 15, 0.82)",
     textAlign: "left",
     overflow: "hidden",
     display: "flex",
@@ -1225,60 +1240,92 @@ const styles = {
   },
   cardPhone: {
     width: "min(78vw, 280px)",
-    minHeight: "250px",
-    padding: "22px 20px",
+    minHeight: "396px",
   },
-  cardTopRow: {
+  cardThumb: {
+    position: "relative",
+    width: "100%",
+    aspectRatio: "16 / 10",
+    overflow: "hidden",
+    borderBottom: `1px solid ${RULE}`,
+    backgroundColor: "rgba(3, 3, 7, 0.9)",
+  },
+  cardThumbImage: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    display: "block",
+  },
+  cardBody: {
     display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "14px",
-    gap: "12px",
+    flexDirection: "column",
+    flexGrow: 1,
+    padding: "18px 20px 20px",
+  },
+  cardBodyPhone: {
+    padding: "16px 18px 18px",
   },
   cardYear: {
-    color: "rgba(214, 205, 232, 0.52)",
-    fontSize: "0.82rem",
+    fontFamily: "var(--mono)",
+    display: "block",
+    marginBottom: "10px",
+    color: "rgba(214, 205, 232, 0.5)",
+    fontSize: "0.72rem",
+    letterSpacing: "0.12em",
+  },
+  cardAccent: {
+    fontFamily: "var(--mono)",
+    position: "absolute",
+    left: "10px",
+    bottom: "10px",
+    padding: "5px 9px",
+    backgroundColor: "rgba(4, 8, 6, 0.85)",
+    border: "1px solid rgba(134, 236, 182, 0.35)",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
+    color: "rgba(134, 236, 182, 0.95)",
+    fontSize: "0.66rem",
     letterSpacing: "0.12em",
     textTransform: "uppercase",
+    whiteSpace: "nowrap",
+  },
+  accentDot: {
+    width: "5px",
+    height: "5px",
+    flexShrink: 0,
+    backgroundColor: "rgba(134, 236, 182, 0.95)",
+    boxShadow: "0 0 8px rgba(134, 236, 182, 0.75)",
   },
   cardTitle: {
     margin: "0 0 8px",
-    fontSize: "2rem",
-    lineHeight: 0.98,
-    letterSpacing: "-0.04em",
+    fontSize: "1.75rem",
+    lineHeight: 1,
+    letterSpacing: "-0.035em",
     color: "#faf7ff",
     fontFamily: '"Playfair Display", serif',
     fontWeight: 500,
   },
-  cardAccent: {
-    color: "rgba(70, 239, 134, 0.9)",
-    fontSize: "0.92rem",
-    letterSpacing: "0.05em",
-    textTransform: "uppercase",
-  },
   cardDescription: {
-    color: "rgba(224, 217, 238, 0.72)",
-    marginBottom: "18px",
-    fontSize: "0.95rem",
+    color: "rgba(224, 217, 238, 0.7)",
+    marginBottom: "16px",
+    fontSize: "0.9rem",
   },
-  contactSection: {
-    marginTop: "44px",
-    padding: "34px 38px",
-    borderRadius: "24px",
-    backgroundColor: "rgba(8, 9, 14, 0.48)",
-    border: "1px solid rgba(198, 179, 230, 0.14)",
-    boxShadow: "0 18px 50px rgba(0, 0, 0, 0.22)",
-    backdropFilter: "blur(8px)",
+  techRow: {
+    marginTop: "auto",
+    paddingTop: "12px",
+    borderTop: `1px solid ${RULE_SOFT}`,
   },
-  contactIntro: {
-    maxWidth: "620px",
-    marginBottom: "22px",
-    color: "rgba(228, 223, 240, 0.74)",
+  techLine: {
+    fontFamily: "var(--mono)",
+    color: "rgba(236, 231, 247, 0.72)",
+    fontSize: "0.68rem",
+    lineHeight: 1.7,
   },
+
+  /* ---- Contact: discrete boxes again, squared ---- */
   contactGrid: {
     display: "grid",
-    // Four fixed tracks rather than auto-fit, so the row never breaks into a
-    // 3 + 1 orphan. minmax(0, ...) lets tracks shrink below their content.
     gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
     gap: "12px",
   },
@@ -1291,41 +1338,29 @@ const styles = {
   },
   contactCard: {
     display: "flex",
-    alignItems: "center",
+    flexDirection: "column",
     gap: "10px",
     minWidth: 0,
     overflow: "hidden",
-    padding: "13px",
-    borderRadius: "16px",
+    padding: "16px",
+    border: `1px solid ${RULE}`,
+    backgroundColor: "rgba(9, 9, 15, 0.6)",
     textDecoration: "none",
     color: "#ece7f7",
-    background: "rgba(98, 48, 143, 0.1)",
-    border: "1px solid rgba(168, 145, 203, 0.16)",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
   },
-  contactIconWrap: {
-    display: "inline-flex",
+  contactLabelRow: {
+    display: "flex",
     alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-    width: "34px",
-    height: "34px",
-    borderRadius: "11px",
-    border: "1px solid rgba(184, 166, 214, 0.2)",
-    backgroundColor: "rgba(124, 73, 171, 0.18)",
+    gap: "7px",
+    minWidth: 0,
   },
   contactIcon: {
-    color: "#f3effc",
-  },
-  contactCopy: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "2px",
-    minWidth: 0,
-    flexGrow: 1,
+    color: "rgba(196, 177, 226, 0.75)",
+    flexShrink: 0,
   },
   contactLabel: {
-    color: "rgba(196, 177, 226, 0.7)",
+    fontFamily: "var(--mono)",
+    color: "rgba(196, 177, 226, 0.72)",
     fontSize: "0.68rem",
     letterSpacing: "0.14em",
     textTransform: "uppercase",
@@ -1334,9 +1369,16 @@ const styles = {
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
+  contactValueRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "10px",
+    minWidth: 0,
+  },
   contactValue: {
     color: "rgba(246, 243, 251, 0.94)",
-    fontSize: "0.88rem",
+    fontSize: "0.9rem",
     lineHeight: 1.35,
     overflow: "hidden",
     textOverflow: "ellipsis",
@@ -1344,8 +1386,10 @@ const styles = {
   },
   contactArrow: {
     flexShrink: 0,
-    color: "rgba(196, 177, 226, 0.6)",
+    color: "rgba(196, 177, 226, 0.55)",
   },
+
+  /* ---- Project modal ---- */
   modalOverlay: {
     position: "fixed",
     inset: 0,
@@ -1354,8 +1398,8 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     padding: "24px",
-    backgroundColor: "rgba(4, 4, 8, 0.72)",
-    backdropFilter: "blur(10px)",
+    backgroundColor: "rgba(4, 4, 8, 0.78)",
+    backdropFilter: "blur(6px)",
   },
   modalOverlayPhone: {
     alignItems: "flex-start",
@@ -1381,13 +1425,9 @@ const styles = {
   floatingMediaCard: {
     position: "absolute",
     width: "220px",
-    minHeight: "150px",
-    borderRadius: "20px",
     overflow: "hidden",
-    border: "1px solid rgba(180, 159, 214, 0.18)",
-    backgroundColor: "rgba(10, 11, 16, 0.86)",
-    boxShadow: "0 24px 48px rgba(0, 0, 0, 0.3)",
-    backdropFilter: "blur(10px)",
+    border: `1px solid ${RULE}`,
+    backgroundColor: "rgba(10, 11, 16, 0.92)",
     pointerEvents: "auto",
   },
   floatingMediaButton: {
@@ -1400,28 +1440,31 @@ const styles = {
     cursor: "pointer",
   },
   floatingMediaInner: {
-    minHeight: "150px",
     display: "flex",
     flexDirection: "column",
-    justifyContent: "space-between",
-    padding: "18px",
-    backgroundColor: "rgba(16, 17, 24, 0.9)",
+    gap: "10px",
+    padding: "12px",
+    backgroundColor: "rgba(14, 15, 22, 0.95)",
   },
   floatingImage: {
     width: "100%",
-    height: "170px",
+    height: "150px",
     objectFit: "cover",
-    borderRadius: "12px",
     display: "block",
+  },
+  mediaCaption: {
+    fontFamily: "var(--mono)",
+    color: "rgba(214, 202, 235, 0.72)",
+    fontSize: "0.68rem",
+    lineHeight: 1.5,
+    textAlign: "left",
   },
   modalCard: {
     width: "min(680px, 100%)",
     maxHeight: "min(88vh, 920px)",
     padding: "28px",
-    borderRadius: "24px",
-    backgroundColor: "rgba(8, 9, 14, 0.96)",
-    border: "1px solid rgba(198, 179, 230, 0.18)",
-    boxShadow: "0 24px 60px rgba(0, 0, 0, 0.35)",
+    backgroundColor: "rgba(8, 9, 14, 0.98)",
+    border: `1px solid ${RULE}`,
     textAlign: "left",
     overflowY: "auto",
     scrollbarWidth: "none",
@@ -1430,38 +1473,6 @@ const styles = {
     width: "100%",
     maxHeight: "none",
     padding: "22px 18px",
-    borderRadius: "20px",
-  },
-  modalMediaRail: {
-    display: "grid",
-    gridTemplateColumns: "1fr",
-    gap: "12px",
-    width: "100%",
-  },
-  modalMediaRailButton: {
-    appearance: "none",
-    width: "100%",
-    padding: 0,
-    border: "1px solid rgba(180, 159, 214, 0.18)",
-    borderRadius: "18px",
-    background: "rgba(10, 11, 16, 0.86)",
-    overflow: "hidden",
-    cursor: "pointer",
-    textAlign: "left",
-  },
-  modalMediaRailInner: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
-    padding: "14px",
-    backgroundColor: "rgba(16, 17, 24, 0.9)",
-  },
-  modalMediaRailImage: {
-    width: "100%",
-    aspectRatio: "16 / 10",
-    objectFit: "cover",
-    borderRadius: "12px",
-    display: "block",
   },
   modalHeader: {
     position: "sticky",
@@ -1471,33 +1482,15 @@ const styles = {
     alignItems: "center",
     justifyContent: "space-between",
     gap: "16px",
-    margin: "-28px -28px 18px",
-    padding: "18px 24px 14px",
-    borderRadius: "24px 24px 0 0",
-    borderBottom: "1px solid rgba(198, 179, 230, 0.12)",
-    backgroundColor: "rgba(8, 9, 14, 0.95)",
-    backdropFilter: "blur(10px)",
+    margin: "-28px -28px 22px",
+    padding: "16px 22px",
+    borderBottom: `1px solid ${RULE_SOFT}`,
+    backgroundColor: "rgba(8, 9, 14, 0.98)",
   },
   modalHeaderPhone: {
     top: "-22px",
-    margin: "-22px -18px 16px",
-    padding: "16px 18px 12px",
-    borderRadius: "20px 20px 0 0",
-  },
-  modalClose: {
-    appearance: "none",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-    width: "34px",
-    height: "34px",
-    padding: 0,
-    borderRadius: "999px",
-    border: "1px solid rgba(184, 166, 214, 0.28)",
-    backgroundColor: "rgba(124, 73, 171, 0.14)",
-    color: "#ece7f7",
-    cursor: "pointer",
+    margin: "-22px -18px 18px",
+    padding: "14px 18px",
   },
   modalMetaRow: {
     display: "flex",
@@ -1505,83 +1498,141 @@ const styles = {
     gap: "14px",
     minWidth: 0,
   },
-  modalDivider: {
-    height: "1px",
-    margin: "24px 0 20px",
-    backgroundColor: "rgba(198, 179, 230, 0.12)",
-  },
-  modalLead: {
-    color: "rgba(240, 236, 250, 0.92)",
-    fontSize: "1.06rem",
-    lineHeight: 1.55,
-    marginBottom: "18px",
+  modalClose: {
+    appearance: "none",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    width: "30px",
+    height: "30px",
+    padding: 0,
+    border: `1px solid ${RULE}`,
+    backgroundColor: "transparent",
+    color: "#ece7f7",
+    cursor: "pointer",
   },
   modalTitle: {
-    margin: "0 0 12px",
+    margin: "0 0 14px",
     fontSize: "clamp(2.2rem, 5vw, 3.4rem)",
     lineHeight: 0.95,
-    letterSpacing: "-0.05em",
+    letterSpacing: "-0.045em",
     color: "#faf7ff",
     fontFamily: '"Playfair Display", serif',
     fontWeight: 500,
   },
-  modalText: {
-    color: "rgba(228, 223, 240, 0.8)",
-    marginBottom: "14px",
-    whiteSpace: 'pre-wrap'
-  },
-  inlineLink: {
-    color: "rgba(214, 202, 235, 1)",
-    textDecoration: "underline",
+  modalLead: {
+    color: "rgba(240, 236, 250, 0.9)",
+    fontSize: "1.04rem",
+    lineHeight: 1.55,
+    marginBottom: "18px",
   },
   modalActions: {
     display: "flex",
-    gap: "10px",
+    marginTop: "22px",
     flexWrap: "wrap",
-    marginTop: "20px",
   },
   modalActionPrimary: {
+    fontFamily: "var(--mono)",
     display: "inline-flex",
     alignItems: "center",
     gap: "8px",
-    padding: "10px 18px",
-    borderRadius: "999px",
+    padding: "11px 18px",
     textDecoration: "none",
-    color: "#06060b",
-    backgroundColor: "rgba(214, 202, 235, 1)",
-    border: "1px solid rgba(214, 202, 235, 0.7)",
-    fontSize: "0.9rem",
-    fontWeight: 650,
+    color: "#07070c",
+    backgroundColor: "rgba(222, 212, 240, 1)",
+    border: "1px solid rgba(222, 212, 240, 1)",
+    fontSize: "0.74rem",
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
   },
   modalActionButton: {
+    fontFamily: "var(--mono)",
     display: "inline-flex",
     alignItems: "center",
     gap: "8px",
-    padding: "10px 18px",
-    borderRadius: "999px",
+    padding: "11px 18px",
     textDecoration: "none",
     color: "#ece7f7",
-    backgroundColor: "rgba(124, 73, 171, 0.14)",
-    border: "1px solid rgba(184, 166, 214, 0.3)",
-    fontSize: "0.9rem",
-    fontWeight: 500,
+    backgroundColor: "transparent",
+    border: `1px solid ${RULE}`,
+    marginLeft: "-1px",
+    fontSize: "0.74rem",
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+  },
+  modalDivider: {
+    height: "1px",
+    margin: "26px 0 22px",
+    backgroundColor: RULE_SOFT,
+  },
+  modalText: {
+    color: "rgba(228, 223, 240, 0.78)",
+    marginBottom: "14px",
+    whiteSpace: "pre-wrap",
   },
   modalSection: {
-    marginTop: "24px",
+    marginTop: "26px",
   },
   modalSectionTitle: {
+    fontFamily: "var(--mono)",
     margin: "0 0 12px",
-    fontSize: "1rem",
-    letterSpacing: "0.08em",
+    fontSize: "0.76rem",
+    letterSpacing: "0.14em",
     textTransform: "uppercase",
-    color: "rgba(236, 231, 247, 0.9)",
+    color: "rgba(236, 231, 247, 0.85)",
+    fontWeight: 500,
   },
-  mediaCaption: {
-    color: "rgba(214, 202, 235, 0.78)",
-    fontSize: "0.8rem",
-    lineHeight: 1.4,
+  playableFrame: {
+    width: "100%",
+    aspectRatio: "16 / 9",
+    overflow: "hidden",
+    border: `1px solid ${RULE}`,
+    backgroundColor: "rgba(12, 12, 18, 0.9)",
+  },
+  playableEmbed: {
+    width: "100%",
+    height: "100%",
+    border: "none",
+    display: "block",
+    backgroundColor: "#090a0f",
+  },
+  playablePlaceholder: {
+    border: `1px dashed ${RULE}`,
+    backgroundColor: "rgba(12, 12, 18, 0.86)",
+    padding: "20px",
+  },
+  modalMediaRail: {
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: "10px",
+    width: "100%",
+  },
+  modalMediaRailButton: {
+    appearance: "none",
+    width: "100%",
+    padding: 0,
+    border: `1px solid ${RULE}`,
+    background: "rgba(10, 11, 16, 0.9)",
+    overflow: "hidden",
+    cursor: "pointer",
     textAlign: "left",
   },
+  modalMediaRailInner: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+    padding: "12px",
+    backgroundColor: "rgba(14, 15, 22, 0.95)",
+  },
+  modalMediaRailImage: {
+    width: "100%",
+    aspectRatio: "16 / 10",
+    objectFit: "cover",
+    display: "block",
+  },
+
+  /* ---- Lightbox ---- */
   lightboxOverlay: {
     position: "fixed",
     inset: 0,
@@ -1590,24 +1641,22 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     padding: "24px",
-    backgroundColor: "rgba(3, 3, 7, 0.88)",
-    backdropFilter: "blur(8px)",
+    backgroundColor: "rgba(3, 3, 7, 0.92)",
   },
   lightboxClose: {
     position: "absolute",
-    top: "24px",
-    right: "24px",
+    top: "22px",
+    right: "22px",
     appearance: "none",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    width: "40px",
-    height: "40px",
+    width: "36px",
+    height: "36px",
     padding: 0,
-    border: "1px solid rgba(184, 166, 214, 0.34)",
-    backgroundColor: "rgba(124, 73, 171, 0.16)",
+    border: `1px solid ${RULE}`,
+    backgroundColor: "transparent",
     color: "#ece7f7",
-    borderRadius: "999px",
     cursor: "pointer",
   },
   lightboxStage: {
@@ -1620,39 +1669,18 @@ const styles = {
     justifyContent: "center",
     gap: "14px",
   },
-  lightboxCaption: {
-    color: "rgba(214, 202, 235, 0.8)",
-    fontSize: "0.9rem",
-    textAlign: "center",
-  },
   lightboxImage: {
     maxWidth: "100%",
-    maxHeight: "90vh",
+    maxHeight: "88vh",
     objectFit: "contain",
     display: "block",
-    borderRadius: "16px",
-    boxShadow: "0 28px 60px rgba(0, 0, 0, 0.4)",
+    border: `1px solid ${RULE}`,
   },
-  playableFrame: {
-    width: "100%",
-    height: "100%",
-    aspectRatio: "16 / 9",
-    borderRadius: "18px",
-    overflow: "hidden",
-    border: "1px solid rgba(180, 159, 214, 0.16)",
-    backgroundColor: "rgba(12, 12, 18, 0.86)",
-  },
-  playableEmbed: {
-    width: "100%",
-    height: "100%",
-    border: "none",
-    display: "block",
-    backgroundColor: "#090a0f",
-  },
-  playablePlaceholder: {
-    borderRadius: "18px",
-    border: "1px dashed rgba(184, 166, 214, 0.34)",
-    backgroundColor: "rgba(12, 12, 18, 0.86)",
-    padding: "20px",
+  lightboxCaption: {
+    fontFamily: "var(--mono)",
+    color: "rgba(214, 202, 235, 0.78)",
+    fontSize: "0.78rem",
+    letterSpacing: "0.04em",
+    textAlign: "center",
   },
 };

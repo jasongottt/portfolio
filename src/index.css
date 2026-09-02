@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
 
 :root {
   --text: #6b6375;
@@ -18,7 +19,7 @@
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: 'Playfair Display', serif;
-  --mono: ui-monospace, Consolas, monospace;
+  --mono: 'Geist Mono Variable', ui-monospace, Consolas, monospace;
 
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
@@ -273,8 +274,7 @@ code {
 /* ------------------------------------------------------------------ *
  *  Interaction states
  *  App.jsx styles elements inline, which can't express :hover or
- *  :focus-visible. The interactive pieces carry these classes so the
- *  states live here instead.
+ *  :focus-visible. Interactive pieces carry these classes instead.
  * ------------------------------------------------------------------ */
 
 html {
@@ -289,70 +289,52 @@ header[id] {
 a:focus-visible,
 button:focus-visible {
   outline: 2px solid rgba(206, 189, 236, 0.85);
-  outline-offset: 3px;
-}
-
-.pressable {
-  transition:
-    transform 160ms ease,
-    background-color 160ms ease,
-    border-color 160ms ease,
-    box-shadow 160ms ease;
-}
-.pressable:hover {
-  transform: translateY(-2px);
-}
-.pressable:active {
-  transform: translateY(0);
+  outline-offset: -2px;
 }
 
 .nav-link {
-  position: relative;
-  transition: color 160ms ease;
+  transition: color 150ms ease;
 }
 .nav-link:hover {
   color: #ffffff;
 }
-.nav-link::after {
-  content: "";
-  position: absolute;
-  left: 2px;
-  right: 2px;
-  bottom: -5px;
-  height: 1px;
-  background: rgba(214, 202, 235, 0.85);
-  transform: scaleX(0);
-  transition: transform 200ms ease;
+
+.pressable {
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
 }
-.nav-link:hover::after {
-  transform: scaleX(1);
+.pressable:hover {
+  background-color: rgba(124, 73, 171, 0.22);
+  border-color: rgba(198, 179, 230, 0.42);
 }
 
 .project-card {
   transition:
-    border-color 200ms ease,
-    background-color 200ms ease,
-    box-shadow 200ms ease;
+    background-color 180ms ease,
+    border-color 180ms ease;
 }
 .card-link:hover .project-card,
 .card-link:focus-visible .project-card {
+  background-color: rgba(20, 15, 30, 0.86);
   border-color: rgba(198, 179, 230, 0.42);
-  background-color: rgba(14, 13, 22, 0.84);
-  box-shadow:
-    0 22px 54px rgba(0, 0, 0, 0.34),
-    inset 0 0 0 1px rgba(170, 130, 225, 0.12);
+}
+.card-link .project-card h3 {
+  transition: color 180ms ease;
+}
+.card-link:hover .project-card h3 {
+  color: #ffffff;
 }
 
 .contact-row {
   transition:
     background-color 180ms ease,
-    border-color 180ms ease,
-    transform 180ms ease;
+    border-color 180ms ease;
 }
 .contact-row:hover {
-  background: rgba(124, 73, 171, 0.18);
-  border-color: rgba(198, 179, 230, 0.34);
-  transform: translateY(-2px);
+  background-color: rgba(124, 73, 171, 0.16);
+  border-color: rgba(198, 179, 230, 0.4);
 }
 
 .rail-arrow {
@@ -362,40 +344,33 @@ button:focus-visible {
     border-color 160ms ease;
 }
 .rail-arrow:hover:not(:disabled) {
-  background: rgba(124, 73, 171, 0.3);
-  border-color: rgba(198, 179, 230, 0.44);
+  background-color: rgba(124, 73, 171, 0.22);
+  border-color: rgba(198, 179, 230, 0.4);
 }
 .rail-arrow:disabled {
-  opacity: 0.2;
+  opacity: 0.22;
   cursor: default;
 }
 
 .icon-button {
-  transition:
-    background-color 160ms ease,
-    border-color 160ms ease,
-    color 160ms ease;
+  transition: background-color 160ms ease, border-color 160ms ease;
 }
 .icon-button:hover {
-  background: rgba(124, 73, 171, 0.26);
-  border-color: rgba(214, 202, 235, 0.55);
+  background-color: rgba(124, 73, 171, 0.22);
+  border-color: rgba(214, 202, 235, 0.5);
 }
 
+/* The tile's border lives on its parent, so highlight with an inset ring. */
 .media-tile {
-  transition: border-color 180ms ease, box-shadow 180ms ease;
+  transition: box-shadow 180ms ease;
 }
 .media-tile:hover {
-  border-color: rgba(214, 202, 235, 0.45);
-  box-shadow: 0 26px 54px rgba(0, 0, 0, 0.4);
+  box-shadow: inset 0 0 0 1px rgba(214, 202, 235, 0.5);
 }
 
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
-  }
-  .pressable:hover,
-  .contact-row:hover {
-    transform: none;
   }
   *,
   *::before,
