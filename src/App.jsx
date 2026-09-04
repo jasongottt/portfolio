@@ -590,12 +590,6 @@ export default function App() {
                             loading="lazy"
                             style={styles.cardThumbImage}
                           />
-                          {project.accent ? (
-                            <span style={styles.cardAccent}>
-                              <span style={styles.accentDot} aria-hidden="true" />
-                              {project.accent}
-                            </span>
-                          ) : null}
                         </div>
                         <div
                           style={{
@@ -603,7 +597,12 @@ export default function App() {
                             ...(isPhoneLayout ? styles.cardBodyPhone : {}),
                           }}
                         >
-                          <span style={styles.cardYear}>{project.year}</span>
+                          <div style={styles.cardMetaRow}>
+                            <span style={styles.cardYear}>{project.year}</span>
+                            {project.accent ? (
+                              <span style={styles.cardAccent}>{project.accent}</span>
+                            ) : null}
+                          </div>
                           <h3 style={styles.cardTitle}>{project.title}</h3>
                           <p style={styles.cardDescription}>{project.description}</p>
                           <div style={styles.techRow}>
@@ -752,10 +751,7 @@ export default function App() {
                 <div style={styles.modalMetaRow}>
                   <span style={styles.cardYear}>{selectedProject.year}</span>
                   {selectedProject.accent ? (
-                    <span style={styles.cardAccent}>
-                              <span style={styles.accentDot} aria-hidden="true" />
-                              {selectedProject.accent}
-                            </span>
+                    <span style={styles.cardAccent}>{selectedProject.accent}</span>
                   ) : null}
                 </div>
                 <button
@@ -1367,37 +1363,25 @@ const styles = {
   cardBodyPhone: {
     padding: "16px 18px 18px",
   },
+  cardMetaRow: {
+    display: "flex",
+    alignItems: "baseline",
+    gap: "10px",
+    marginBottom: "10px",
+  },
   cardYear: {
     fontFamily: "var(--mono)",
-    display: "block",
-    marginBottom: "10px",
     color: tint(37, 86, 0.5),
     fontSize: "0.72rem",
     letterSpacing: "0.12em",
   },
   cardAccent: {
     fontFamily: "var(--mono)",
-    position: "absolute",
-    left: "10px",
-    bottom: "10px",
-    padding: "5px 9px",
-    backgroundColor: "rgba(4, 8, 6, 0.85)",
-    border: "1px solid rgba(134, 236, 182, 0.35)",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "6px",
     color: "rgba(134, 236, 182, 0.95)",
     fontSize: "0.66rem",
     letterSpacing: "0.12em",
     textTransform: "uppercase",
     whiteSpace: "nowrap",
-  },
-  accentDot: {
-    width: "5px",
-    height: "5px",
-    flexShrink: 0,
-    backgroundColor: "rgba(134, 236, 182, 0.95)",
-    boxShadow: "0 0 8px rgba(134, 236, 182, 0.75)",
   },
   cardTitle: {
     margin: "0 0 8px",
