@@ -1,7 +1,18 @@
-import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { motion, useReducedMotion } from "motion/react";
 import VariableProximity from "./components/VariableProximity";
 import { applyTheme, pickRandomTheme, themeToRgbTriple } from "./theme";
+import { PANEL_BG, RULE, RULE_SOFT, shade, tint } from "./palette";
 
 // Lazy so the three.js it pulls in loads after first paint rather than
 // blocking it. The static wash underneath covers the gap.
@@ -13,11 +24,13 @@ import {
   ChevronRight,
   ExternalLink,
   FileText,
+  Gamepad2,
   Github,
   Instagram,
   Linkedin,
   Mail,
   Shuffle,
+  Trophy,
   X,
 } from "lucide-react";
 
@@ -33,6 +46,9 @@ const navSections = [
   { href: "#projects", label: "Projects" },
   { href: "#contact", label: "Contact" },
 ];
+
+const KONAMI = ["ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "KeyB", "KeyA"];
+const PARTY_MS = 4500;
 
 const contactLinks = [
   {
@@ -66,6 +82,164 @@ const contactLinks = [
 
 const resolveImagePath = (path) => (path.startsWith("/") ? path : `/${path}`);
 
+// Builds are 16:9 unless they say otherwise. Width is capped so a tall build
+// (like a square one) still fits on screen without scrolling the modal.
+const playableFrameStyle = (aspectRatio = 16 / 9) => ({
+  ...styles.playableFrame,
+  aspectRatio: String(aspectRatio),
+  width: `min(100%, ${(75 * aspectRatio).toFixed(2)}vh)`,
+});
+
+// Projects live at module scope: nothing in them depends on state.
+const projects = [
+  {
+    title: "Real Time Code Injection",
+    description:
+      "A research project involving live LLM code compilation in Unity.",
+    tech: "Unity, C#, Ollama, Lua, Moonsharp",
+    year: "2026",
+    accent: "",
+    details:
+      "This was a solo summer research project. It is an XR application built in Unity that allows you to command a cube to exhibit different behaviors. Your command is fed to a local Qwen model with Ollama, and the model outputs Lua code that is then compiled and executed in Unity using Moonsharp. The application is built for the Meta Quest 3, and allows you to interact with the cube in VR. The project was a great opportunity for me to learn about XR development, as well as to experiment with LLMs and live code compilation. It has its limitations, but it was a fun and interesting project to work on. May continue working on it in the future.",
+    readMoreUrl:
+      "https://docs.google.com/document/d/1CQJBZzrihbuT358cC2lAaxg17GMCTpzcUwwpD1wuNBM/edit?usp=sharing",
+    repoUrl: "https://github.com/jasongottt/VR-Live-Code-Generation",
+    screenshots: [
+      { label: "Make the cube green", path: "/projects/research1.png" },
+      { label: "Made the cube much smaller", path: "/projects/research2.png" },
+    ],
+  },
+  {
+    title: "Shadow Boxing",
+    description:
+      "An ongoing game prototype involving a two player boxing game.",
+    tech: "Godot, GDScript, Krita",
+    year: "2026",
+    accent: "Playable!",
+    details:
+      "An ongoing game prototype involving a two player boxing game. It follows a basic \"shadow boxing\" formula, where one player chooses a direction to punch and the other player must dodge a different direction. If the puncher misses, the roles are swapped until someone hits 3 punches in a row. Built in Godot with GDScript and Krita for art assets. The project is still in development, but the core mechanics are implemented. I plan to work on it on the side for the foreseeable future, and will continue to add features and polish the game. The project was a great opportunity for me to practice my game development skills, as well as to experiment with different mechanics and design ideas.",
+    repoUrl: "https://github.com/jasongottt/shadow-boxing",
+    screenshots: [
+      { label: "Basic gameplay sprites", path: "/projects/shadowbox1.png" },
+      { label: "Early main menu", path: "/projects/shadowbox2.png" },
+    ],
+    playableEmbed: {
+      label: "Play here!",
+      path: "/projects/playables/shadow-boxing/index.html",
+      ready: true,
+      aspectRatio: 1,
+    },
+  },
+  {
+    title: "Spotlight.",
+    description:
+      "A custom Kanban-style task management application built in React, with a focus on a clean and unique visual design.",
+    tech: "React.js, Supabase",
+    year: "2026",
+    accent: "",
+    details:
+      "This was a website made to practice React.js and Supabase, as well as to have a fun and visually interesting project to work on. The application features a custom drag-and-drop system for moving tasks between columns, as well as a unique visual design with various interactive elements. I implemented the backend using Supabase, which allowed me to quickly set up a database with various tables. The main unique feature of this project is the titular Spotlight, where the cursor is surrounded by a spotlight that illuminates and saturates the area around it, while the rest of the screen is darker and desaturated. This creates a unique visual effect and also helps to focus attention on the area around the cursor. Overall, this project was a great opportunity for me to practice my frontend and backend development skills, as well as to experiment with creative design ideas. This project is fully published online, and you can try it out with the live demo link above. \n\n NOTE: Due to how the free tier of Supabase works, the database will shut down after a week of inactivity. This will cause the board to fail to load.",
+    liveUrl: "https://spotlight-kanban-project.vercel.app/",
+    repoUrl: "https://github.com/jasongottt/Spotlight.",
+    screenshots: [
+      { label: "Main board view", path: "/projects/spotlight1.png" },
+      { label: "Task details panel", path: "/projects/spotlight2.png" },
+    ],
+  },
+  {
+    title: "Ship Happens",
+    description:
+      "A resource management game built in ~10 hours for a game jam, based around the theme of \"Friendship\".",
+    tech: "Godot, GDScript",
+    year: "2025",
+    accent: "Playable!",
+    award: "1st place",
+    details:
+      "This game was built for the Purdue Hackers' Kiln Game Jam. I decided to interpret the given theme by having the player manage a ship made out of their friends! The main idea was for the player to balance the needs of their \"friends\" (the ship's resources) while trying to survive as long as possible. By the nature of a game jam, I had limited time and resources to create the project. I was in charge of the entirety of the project, except for most of the art, which was done by my roommate. \n\nA major focus for the game was procedural generation to keep gameplay interesting, so I implemented a lot of random variety to the game, such as through various modifiers that could be added to the \"friends\" you encounter, as well as the random events throughout the game. Due to the time-limited nature of a game jam, the project had some rough edges, but overall, I was happy with how the game turned out given the time constraints, and it was a great learning experience for me in terms of rapid prototyping and iteration in game development. \n\nShip Happens ended up taking 1st place in the jam!",
+    repoUrl: "https://github.com/jasongottt/Ship-Happens",
+    screenshots: [
+      { label: "A friend asking for help", path: "/projects/ship1.png" },
+      { label: "New friend screen", path: "/projects/ship2.png" },
+    ],
+    playableEmbed: {
+      label: "Play here!",
+      path: "/projects/playables/ship-happens/index.html",
+      ready: true,
+    },
+  },
+  {
+    title: "Sheltering Wings",
+    description:
+      "A full-stack web application built for Hack the Future at Purdue, in service of the nonprofit Sheltering Wings.",
+    tech: "React, MongoDB",
+    year: "2025 - 2026",
+    details:
+      "I am part of a team of 10 developers and 1 designer, with the goal of communicating with the nonprofit to build a product that would be useful to them. We are building a web app that serves as a chore tracking application, event scheduler / tracker, as well as a user manager. I am involved in both frontend and backend development, working on implementing features such as user authentication, database schema design, and various UI components. \n\nWe utilized MongoDB for the database design, as well as the Microsoft Calendar API for the calendar integration. The frontend is done primarily in React. This project is a great experience in terms of working with a team, communicating with a client, and building a full-stack application from start to finish. Due to the nature of this project, a public repository / link is not available.",
+    repoUrl: "",
+    screenshots: [
+      { label: "Chore tracker prototype", path: "projects/sheltering1.png" },
+      { label: "People view prototype", path: "projects/sheltering2.png" },
+    ],
+  },
+  {
+    title: "Jammed!",
+    description:
+      "A game prototype built for a class team project, focused around a straightforward gameplay loop.",
+    tech: "Unreal Engine",
+    year: "2025",
+    accent: "",
+    details:
+      "This was a project for an introductory Unreal Engine class, where we were tasked to create a small prototype in teams of two, based on the theme \"Jammed\". We decided to make a game where a cube of spikes closes in on the player, with only one side having an opening. The player has to quickly find the gap and get through it before the cube crushes them. This cycle repeats infinitely, and the goal is to survive as long as possible. \n\nI was responsible for the majority of the development of the project, including programming the main gameplay mechanics, especially the collision detection and response systems, as well as scorekeeping. This project was a great opportunity for me to learn Unreal Engine and get comfortable with its various systems, such as Blueprints and level design tools. Due to the nature of this being a class project, there isn't a public repository or link available.",
+    repoUrl: "",
+    screenshots: [
+      { label: "Gameplay screenshot", path: "/projects/jammed1.png" },
+      { label: "Unreal blueprints", path: "/projects/jammed2.png" },
+    ],
+  },
+  {
+    title: "Yappify",
+    description:
+      "A social media application developed in Java, focused on clean structure and multithreading support.",
+    tech: "Java",
+    year: "2024",
+    details:
+      "This was a project for a Java programming class, where we were tasked to create a social media application with support for multiple users and concurrent interactions. I designed the application with a focus on clean code structure and efficient multithreading to handle simultaneous user actions. The application includes features such as friending users, blocking users, and live messaging. This project was a great opportunity for me to deepen my understanding of Java, especially in terms of concurrency and object-oriented design principles. Due to the nature of this being a class project, there isn't a public repository or link available.",
+    repoUrl: "",
+    screenshots: [
+      { label: "Profile screen", path: "/projects/yappify1.png" },
+      { label: "Main app screen", path: "/projects/yappify2.png" },
+    ],
+  },
+  {
+    title: "Wishbone",
+    description:
+      "A Discord bot built to remind users to make wishes at 11:11, with persistent data storage and statistics tracking.",
+    tech: "Python, SQLite",
+    year: "2023",
+    details:
+      "A superstition that some of my friends and I believe in is to make a wish at 11:11 every night, and hope it comes true. After doing this for a long time, I decided I would create a Discord bot to help remind us to make our wishes, as well as track some statistics about our wishing habits. The bot sends a reminder message in a designated channel every night at 11:10, and then again at 11:11. Users can then send a message, indicating that they have made their wish. The bot then keeps track of how many times each user has wished, as well as some fun stats like streaks. \n\nThis project was a fun way for me to practice my Python skills and learn about creating Discord bots, as well as implementing a simple database for persistent data storage.",
+    repoUrl: "https://github.com/jasongottt/wishbone",
+    screenshots: [
+      { label: "Wishing at 11:11", path: "/projects/wish1.png" },
+      { label: "Statistics tracking", path: "/projects/wish2.png" },
+    ],
+  },
+  {
+    title: "This Website",
+    description:
+      "A portfolio website built to showcase my projects and experience, with a focus on a clean visual identity.",
+    tech: "React.js, three.js, CSS, Vite",
+    year: "2026",
+    details:
+      "The website you're currently on! I built this website to have a personal space to showcase my projects and experience, as well as to experiment with various design and development techniques, especially with React.js. I built the website using React.js for the frontend, with Vite as the build tool for a fast development experience. The design incorporates various visual effects, such as the dithered background and floating media cards. This project was a great opportunity for me to practice my frontend development skills and explore creative design possibilities.",
+    repoUrl: "https://github.com/jasongottt/portfolio",
+    screenshots: [
+      { label: "Projects section", path: "/projects/this1.png" },
+      { label: "Landing page", path: "/projects/this2.png" },
+    ],
+  },
+];
+
 export default function App() {
   const containerRef = useRef(null);
   const projectsViewportRef = useRef(null);
@@ -86,147 +260,9 @@ export default function App() {
   // Below this the four contact tracks get too narrow to show a full handle,
   // so they fold to a balanced 2x2 instead of truncating.
   const isNarrowDesktop = !isPhoneLayout && viewportSize.width < 1180;
-  const projects = [
-    {
-      title: "Real Time Code Injection",
-      description:
-        "A research project involving live LLM code compilation in Unity.",
-      tech: "Unity, C#, Ollama, Lua, Moonsharp",
-      year: "2026",
-      accent: "",
-      details:
-        "This was a solo summer research project. It is an XR application built in Unity that allows you to command a cube to exhibit different behaviors. Your command is fed to a local Qwen model with Ollama, and the model outputs Lua code that is then compiled and executed in Unity using Moonsharp. The application is built for the Meta Quest 3, and allows you to interact with the cube in VR. The project was a great opportunity for me to learn about XR development, as well as to experiment with LLMs and live code compilation. It has its limitations, but it was a fun and interesting project to work on. May continue working on it in the future.",
-      readMoreUrl:
-        "https://docs.google.com/document/d/1CQJBZzrihbuT358cC2lAaxg17GMCTpzcUwwpD1wuNBM/edit?usp=sharing",
-      repoUrl: "https://github.com/jasongottt/VR-Live-Code-Generation",
-      screenshots: [
-        { label: "Make the cube green", path: "/projects/research1.png" },
-        { label: "Made the cube much smaller", path: "/projects/research2.png" },
-      ],
-    },
-    {
-      title: "Shadow Boxing",
-      description:
-        "An ongoing game prototype involving a two player boxing game.",
-      tech: "Godot, GDScript, Krita",
-      year: "2026",
-      accent: "",
-      details:
-        "An ongoing game prototype involving a two player boxing game. It follows a basic \"shadow boxing\" formula, where one player chooses a direction to punch and the other player must dodge a different direction. If the puncher misses, the roles are swapped until someone hits 3 punches in a row. Built in Godot with GDScript and Krita for art assets. The project is still in development, but the core mechanics are implemented. I plan to work on it on the side for the foreseeable future, and will continue to add features and polish the game. The project was a great opportunity for me to practice my game development skills, as well as to experiment with different mechanics and design ideas.",
-      repoUrl: "https://github.com/jasongottt/shadow-boxing",
-      screenshots: [
-        { label: "Basic gameplay sprites", path: "/projects/shadowbox1.png" },
-        { label: "Early main menu", path: "/projects/shadowbox2.png" },
-      ],
-    },
-    {
-      title: "Spotlight.",
-      description:
-        "A custom Kanban-style task management application built in React, with a focus on a clean and unique visual design.",
-      tech: "React.js, Supabase",
-      year: "2026",
-      accent: "",
-      details:
-        "This was a website made to practice React.js and Supabase, as well as to have a fun and visually interesting project to work on. The application features a custom drag-and-drop system for moving tasks between columns, as well as a unique visual design with various interactive elements. I implemented the backend using Supabase, which allowed me to quickly set up a database with various tables. The main unique feature of this project is the titular Spotlight, where the cursor is surrounded by a spotlight that illuminates and saturates the area around it, while the rest of the screen is darker and desaturated. This creates a unique visual effect and also helps to focus attention on the area around the cursor. Overall, this project was a great opportunity for me to practice my frontend and backend development skills, as well as to experiment with creative design ideas. This project is fully published online, and you can try it out with the live demo link above. \n\n NOTE: Due to how the free tier of Supabase works, the database will shut down after a week of inactivity. This will cause the board to fail to load.",
-      liveUrl: "https://spotlight-kanban-project.vercel.app/",
-      repoUrl: "https://github.com/jasongottt/Spotlight.",
-      screenshots: [
-        { label: "Main board view", path: "/projects/spotlight1.png" },
-        { label: "Task details panel", path: "/projects/spotlight2.png" },
-      ],
-    },
-    {
-      title: "Ship Happens",
-      description:
-        "A resource management game built in ~10 hours for a game jam, based around the theme of \"Friendship\".",
-      tech: "Godot, GDScript",
-      year: "2025",
-      accent: "Playable!",
-      details:
-        "This game was built for the Purdue Hackers' Kiln Game Jam. I decided to interpret the given theme by having the player manage a ship made out of their friends! The main idea was for the player to balance the needs of their \"friends\" (the ship's resources) while trying to survive as long as possible. By the nature of a game jam, I had limited time and resources to create the project. I was in charge of the entirety of the project, except for most of the art, which was done by my roommate. \n\nA major focus for the game was procedural generation to keep gameplay interesting, so I implemented a lot of random variety to the game, such as through various modifiers that could be added to the \"friends\" you encounter, as well as the random events throughout the game. Due to the time-limited nature of a game jam, the project had some rough edges, but overall, I was happy with how the game turned out given the time constraints, and it was a great learning experience for me in terms of rapid prototyping and iteration in game development.",
-      repoUrl: "https://github.com/jasongottt/Ship-Happens",
-      screenshots: [
-        { label: "A friend asking for help", path: "/projects/ship1.png" },
-        { label: "New friend screen", path: "/projects/ship2.png" },
-      ],
-      playableEmbed: {
-        label: "Play here!",
-        path: "/projects/playables/ship-happens/index.html",
-        ready: true,
-      },
-    },
-    {
-      title: "Sheltering Wings",
-      description:
-        "A full-stack web application built for Hack the Future at Purdue, in service of the nonprofit Sheltering Wings.",
-      tech: "React, MongoDB",
-      year: "2025 - 2026",
-      details:
-        "I am part of a team of 10 developers and 1 designer, with the goal of communicating with the nonprofit to build a product that would be useful to them. We are building a web app that serves as a chore tracking application, event scheduler / tracker, as well as a user manager. I am involved in both frontend and backend development, working on implementing features such as user authentication, database schema design, and various UI components. \n\nWe utilized MongoDB for the database design, as well as the Microsoft Calendar API for the calendar integration. The frontend is done primarily in React. This project is a great experience in terms of working with a team, communicating with a client, and building a full-stack application from start to finish. Due to the nature of this project, a public repository / link is not available.",
-      repoUrl: "",
-      screenshots: [
-        { label: "Chore tracker prototype", path: "projects/sheltering1.png" },
-        { label: "People view prototype", path: "projects/sheltering2.png" },
-      ],
-    },
-    {
-      title: "Jammed!",
-      description:
-        "A game prototype built for a class team project, focused around a straightforward gameplay loop.",
-      tech: "Unreal Engine",
-      year: "2025",
-      accent: "",
-      details:
-        "This was a project for an introductory Unreal Engine class, where we were tasked to create a small prototype in teams of two, based on the theme \"Jammed\". We decided to make a game where a cube of spikes closes in on the player, with only one side having an opening. The player has to quickly find the gap and get through it before the cube crushes them. This cycle repeats infinitely, and the goal is to survive as long as possible. \n\nI was responsible for the majority of the development of the project, including programming the main gameplay mechanics, especially the collision detection and response systems, as well as scorekeeping. This project was a great opportunity for me to learn Unreal Engine and get comfortable with its various systems, such as Blueprints and level design tools. Due to the nature of this being a class project, there isn't a public repository or link available.",
-      repoUrl: "",
-      screenshots: [
-        { label: "Gameplay screenshot", path: "/projects/jammed1.png" },
-        { label: "Unreal blueprints", path: "/projects/jammed2.png" },
-      ],
-    },
-    {
-      title: "Yappify",
-      description:
-        "A social media application developed in Java, focused on clean structure and multithreading support.",
-      tech: "Java",
-      year: "2024",
-      details:
-        "This was a project for a Java programming class, where we were tasked to create a social media application with support for multiple users and concurrent interactions. I designed the application with a focus on clean code structure and efficient multithreading to handle simultaneous user actions. The application includes features such as friending users, blocking users, and live messaging. This project was a great opportunity for me to deepen my understanding of Java, especially in terms of concurrency and object-oriented design principles. Due to the nature of this being a class project, there isn't a public repository or link available.",
-      repoUrl: "",
-      screenshots: [
-        { label: "Profile screen", path: "/projects/yappify1.png" },
-        { label: "Main app screen", path: "/projects/yappify2.png" },
-      ],
-    },
-    {
-      title: "Wishbone",
-      description:
-        "A Discord bot built to remind users to make wishes at 11:11, with persistent data storage and statistics tracking.",
-      tech: "Python, SQLite",
-      year: "2023",
-      details:
-        "A superstition that some of my friends and I believe in is to make a wish at 11:11 every night, and hope it comes true. After doing this for a long time, I decided I would create a Discord bot to help remind us to make our wishes, as well as track some statistics about our wishing habits. The bot sends a reminder message in a designated channel every night at 11:10, and then again at 11:11. Users can then send a message, indicating that they have made their wish. The bot then keeps track of how many times each user has wished, as well as some fun stats like streaks. \n\nThis project was a fun way for me to practice my Python skills and learn about creating Discord bots, as well as implementing a simple database for persistent data storage.",
-      repoUrl: "https://github.com/jasongottt/wishbone",
-      screenshots: [
-        { label: "Wishing at 11:11", path: "/projects/wish1.png" },
-        { label: "Statistics tracking", path: "/projects/wish2.png" },
-      ],
-    },
-    {
-      title: "This Website",
-      description:
-        "A portfolio website built to showcase my projects and experience, with a focus on a clean visual identity.",
-      tech: "React.js, CSS, Vite",
-      year: "2026",
-      details:
-        "The website you're currently on! I built this website to have a personal space to showcase my projects and experience, as well as to experiment with various design and development techniques, especially with React.js. I built the website using React.js for the frontend, with Vite as the build tool for a fast development experience. The design incorporates various visual effects, such as the dithered background and floating media cards. This project was a great opportunity for me to practice my frontend development skills and explore creative design possibilities.",
-      repoUrl: "https://github.com/jasongottt/portfolio",
-      screenshots: [
-        { label: "Projects section", path: "/projects/this1.png" },
-        { label: "Landing page", path: "/projects/this2.png" },
-      ],
-    },
-  ];
+  // Non-null only while the Konami party is sweeping the hue around.
+  const [partyHue, setPartyHue] = useState(null);
+  const partyFrameRef = useRef(0);
 
   useEffect(() => {
     const viewport = projectsViewportRef.current;
@@ -335,19 +371,95 @@ export default function App() {
     rail.atStart ? "black 0" : `transparent 0, black ${railFade}`
   }, ${rail.atEnd ? "black 100%" : `black calc(100% - ${railFade}), transparent 100%`})`;
 
+  const activeTheme = useMemo(
+    () => (partyHue === null ? theme : { ...theme, id: "party", name: "Party", hue: partyHue, sat: 1 }),
+    [theme, partyHue]
+  );
+
   // Layout effect, not a plain effect: the custom properties have to land
   // before the first paint or the page flashes lavender on reload.
   useLayoutEffect(() => {
-    applyTheme(theme);
-  }, [theme]);
+    applyTheme(activeTheme);
+  }, [activeTheme]);
 
   // Dither diffs this by value, but memoizing keeps the Canvas subtree out of
   // re-renders driven by scroll and resize state.
-  const waveColor = useMemo(() => themeToRgbTriple(theme), [theme]);
+  const waveColor = useMemo(() => themeToRgbTriple(activeTheme), [activeTheme]);
 
   const randomizeTheme = useCallback(() => {
     setTheme((current) => pickRandomTheme(current.id));
   }, []);
+
+  // The Konami code sweeps the hue all the way around -- CSS and background
+  // alike, since both hang off the same theme -- then lands on a fresh preset.
+  const startParty = useEffectEvent(() => {
+    cancelAnimationFrame(partyFrameRef.current);
+    if (prefersReducedMotion) {
+      setTheme((current) => pickRandomTheme(current.id));
+      return;
+    }
+    const startHue = theme.hue;
+    const startedAt = performance.now();
+    let lastStep = 0;
+    const step = (now) => {
+      const elapsed = now - startedAt;
+      if (elapsed >= PARTY_MS) {
+        setPartyHue(null);
+        setTheme((current) => pickRandomTheme(current.id));
+        return;
+      }
+      // ~20 steps a second is plenty for a hue sweep and keeps the re-renders
+      // it drives cheap.
+      if (now - lastStep > 50) {
+        lastStep = now;
+        const eased = 1 - (1 - elapsed / PARTY_MS) ** 2;
+        setPartyHue(Math.round(startHue + eased * 540) % 360);
+      }
+      partyFrameRef.current = requestAnimationFrame(step);
+    };
+    partyFrameRef.current = requestAnimationFrame(step);
+  });
+
+  useEffect(() => {
+    const party = partyFrameRef;
+    let progress = 0;
+    const onKeyDown = (event) => {
+      if (event.code === KONAMI[progress]) {
+        progress += 1;
+        if (progress === KONAMI.length) {
+          progress = 0;
+          startParty();
+        }
+      } else {
+        progress = event.code === KONAMI[0] ? 1 : 0;
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      cancelAnimationFrame(party.current);
+    };
+  }, []);
+
+  // A few degrees of pointer-follow tilt on the project cards. Mouse only:
+  // on touch it would fight the rail's scroll.
+  const tiltCard = (event) => {
+    if (event.pointerType !== "mouse" || prefersReducedMotion) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = (event.clientX - rect.left) / rect.width;
+    const y = (event.clientY - rect.top) / rect.height;
+    const card = event.currentTarget.firstElementChild;
+    card.style.setProperty("--tilt-x", `${((0.5 - y) * 6).toFixed(2)}deg`);
+    card.style.setProperty("--tilt-y", `${((x - 0.5) * 8).toFixed(2)}deg`);
+    card.style.setProperty("--glare-x", `${(x * 100).toFixed(1)}%`);
+    card.style.setProperty("--glare-y", `${(y * 100).toFixed(1)}%`);
+  };
+
+  const untiltCard = (event) => {
+    const card = event.currentTarget.firstElementChild;
+    card.style.removeProperty("--tilt-x");
+    card.style.removeProperty("--tilt-y");
+  };
 
   const scrollRail = useCallback((direction) => {
     const viewport = projectsViewportRef.current;
@@ -398,7 +510,10 @@ export default function App() {
             Jason Gottesman
           </a>
         ) : null}
-        <div style={{ ...styles.navLinks, ...(isPhoneLayout ? styles.navLinksPhone : {}) }}>
+        <div
+          className={isPhoneLayout ? "nav-scroll" : undefined}
+          style={{ ...styles.navLinks, ...(isPhoneLayout ? styles.navLinksPhone : {}) }}
+        >
           {navSections.map((section) => (
             <a
               key={section.href}
@@ -428,10 +543,10 @@ export default function App() {
           className="pressable"
           style={styles.themeButton}
           onClick={randomizeTheme}
-          aria-label={`Randomize site color. Current color: ${theme.name}`}
+          aria-label={`Randomize site color. Current color: ${activeTheme.name}`}
         >
           <Shuffle size={13} aria-hidden="true" />
-          {!isPhoneLayout ? <span>{theme.name}</span> : null}
+          {!isPhoneLayout ? <span>{activeTheme.name}</span> : null}
         </button>
         <span className="sr-only" role="status" aria-live="polite">
           {`Color: ${theme.name}`}
@@ -504,10 +619,10 @@ export default function App() {
               </div>
             </div>
             <p style={styles.bodyText}>
-              I'm Jason, a student at Purdue University. I am majoring in Computer Science with a concentration in 
+              I'm Jason, a student at Purdue University. I am majoring in Computer Science with a concentration in
               Computer Graphics and Visualization, as well as a major in Game Development. I care a lot about crafting
               experiences that are fun and interesting, whether it's a game, a website, or any other unique interactive project.
-              I have experience in full-stack web development, game development in Godot, Unreal Engine, and Unity, as well as UI/UX design. 
+              I have experience in full-stack web development, game development in Godot, Unreal Engine, and Unity, as well as UI/UX design.
             </p>
             <br />
             <p style={styles.bodyText}>
@@ -577,6 +692,8 @@ export default function App() {
                       className="card-link"
                       style={{ ...styles.cardLink, ...(isPhoneLayout ? styles.cardLinkPhone : {}) }}
                       onClick={() => setSelectedProject(project)}
+                      onPointerMove={tiltCard}
+                      onPointerLeave={untiltCard}
                       aria-label={`Open details for ${project.title}`}
                     >
                       <article
@@ -601,6 +718,12 @@ export default function App() {
                             <span style={styles.cardYear}>{project.year}</span>
                             {project.accent ? (
                               <span style={styles.cardAccent}>{project.accent}</span>
+                            ) : null}
+                            {project.award ? (
+                              <span style={styles.cardAward}>
+                                <Trophy size={10} aria-hidden="true" />
+                                {project.award}
+                              </span>
                             ) : null}
                           </div>
                           <h3 style={styles.cardTitle}>{project.title}</h3>
@@ -753,6 +876,12 @@ export default function App() {
                   {selectedProject.accent ? (
                     <span style={styles.cardAccent}>{selectedProject.accent}</span>
                   ) : null}
+                  {selectedProject.award ? (
+                    <span style={styles.cardAward}>
+                      <Trophy size={10} aria-hidden="true" />
+                      {selectedProject.award}
+                    </span>
+                  ) : null}
                 </div>
                 <button
                   type="button"
@@ -825,7 +954,7 @@ export default function App() {
                 <div style={styles.modalSection}>
                   <h4 style={styles.modalSectionTitle}>{selectedProject.playableEmbed.label}</h4>
                   {selectedProject.playableEmbed.ready ? (
-                    <div style={styles.playableFrame}>
+                    <div style={playableFrameStyle(selectedProject.playableEmbed.aspectRatio)}>
                       <iframe
                         src={selectedProject.playableEmbed.path}
                         title={`${selectedProject.title} playable build`}
@@ -906,30 +1035,6 @@ export default function App() {
   );
 }
 
-/**
- * Palette helpers. Every accent below is the same hue at a different lightness
- * and alpha, so they all resolve from --hue (see theme.js) and rotate together
- * when the randomize button fires. --sat scales saturation per hue.
- */
-const tint = (saturation, lightness, alpha) =>
-  `hsl(var(--hue) calc(${saturation}% * var(--sat)) ${lightness}%${
-    alpha === undefined ? "" : ` / ${alpha}`
-  })`;
-
-/**
- * Panel and page grounds. These take the hue but skip the saturation scaling:
- * at 2-7% lightness the tint is barely perceptible, and trimming it further
- * would just flatten every palette to the same black.
- */
-const shade = (saturation, lightness, alpha) =>
-  `hsl(var(--hue) ${saturation}% ${lightness}%${
-    alpha === undefined ? "" : ` / ${alpha}`
-  })`;
-
-const RULE = tint(50, 80, 0.18);
-const RULE_SOFT = tint(50, 80, 0.1);
-const PANEL_BG = shade(27, 4, 0.58);
-
 const styles = {
   pageBackground: {
     position: "fixed",
@@ -975,13 +1080,16 @@ const styles = {
     position: "fixed",
     top: "16px",
     left: "50%",
-    transform: "translateX(-50%)",
+    // Motion owns this element's transform (it animates y), so the centering
+    // offset has to go through Motion too -- a plain transform string gets
+    // overwritten the moment y settles.
+    x: "-50%",
     zIndex: 15,
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
     gap: "28px",
-    width: "min(760px, calc(100% - 32px))",
+    width: "min(940px, calc(100% - 32px))",
     padding: "9px 10px 9px 18px",
     border: `1px solid ${RULE}`,
     backgroundColor: shade(27, 4, 0.9),
@@ -990,8 +1098,8 @@ const styles = {
   },
   navPhone: {
     width: "calc(100% - 24px)",
-    justifyContent: "center",
-    padding: "8px 10px",
+    justifyContent: "flex-start",
+    padding: "8px 0 8px 10px",
   },
   navBrand: {
     fontFamily: "var(--mono)",
@@ -1005,9 +1113,17 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: "22px",
+    minWidth: 0,
   },
+  // The links don't always fit across a phone, so the row scrolls sideways.
   navLinksPhone: {
-    gap: "14px",
+    flex: "1 1 auto",
+    gap: "16px",
+    overflowX: "auto",
+    paddingRight: "10px",
+    // Fade the trailing edge so it's clear the row keeps going.
+    maskImage: "linear-gradient(to right, black calc(100% - 36px), transparent)",
+    WebkitMaskImage: "linear-gradient(to right, black calc(100% - 36px), transparent)",
   },
   navLink: {
     fontFamily: "var(--mono)",
@@ -1186,7 +1302,7 @@ const styles = {
     position: "absolute",
     bottom: "26px",
     left: "50%",
-    transform: "translateX(-50%)",
+    x: "-50%",
     color: tint(45, 86, 0.7),
     textDecoration: "none",
     display: "flex",
@@ -1297,6 +1413,8 @@ const styles = {
   projectsViewport: {
     overflowX: "auto",
     overflowY: "hidden",
+    // Headroom so a tilted card's near edge isn't clipped by the rail.
+    paddingTop: "6px",
     paddingBottom: "8px",
     scrollbarWidth: "none",
     msOverflowStyle: "none",
@@ -1379,6 +1497,18 @@ const styles = {
     fontFamily: "var(--mono)",
     color: "rgba(134, 236, 182, 0.95)",
     fontSize: "0.66rem",
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+    whiteSpace: "nowrap",
+  },
+  cardAward: {
+    fontFamily: "var(--mono)",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "4px",
+    marginLeft: "auto",
+    color: tint(55, 88, 0.9),
+    fontSize: "0.62rem",
     letterSpacing: "0.12em",
     textTransform: "uppercase",
     whiteSpace: "nowrap",
@@ -1473,6 +1603,42 @@ const styles = {
   contactArrow: {
     flexShrink: 0,
     color: tint(46, 79, 0.55),
+  },
+
+  /* ---- Footer ---- */
+  footer: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "16px",
+    marginTop: "40px",
+    padding: "18px 4px 0",
+    borderTop: `1px solid ${RULE_SOFT}`,
+    fontFamily: "var(--mono)",
+    fontSize: "0.68rem",
+    letterSpacing: "0.06em",
+    color: tint(37, 86, 0.55),
+  },
+  footerPhone: {
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: "10px",
+    marginTop: "28px",
+  },
+  footerMiddle: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
+    flexWrap: "wrap",
+  },
+  footerSecret: {
+    marginLeft: "4px",
+    color: tint(37, 86, 0.3),
+    letterSpacing: "0.12em",
+  },
+  footerTop: {
+    color: tint(45, 86, 0.75),
+    textDecoration: "none",
   },
 
   /* ---- Project modal ---- */
@@ -1671,7 +1837,7 @@ const styles = {
   },
   playableFrame: {
     width: "100%",
-    aspectRatio: "16 / 9",
+    margin: "0 auto",
     overflow: "hidden",
     border: `1px solid ${RULE}`,
     backgroundColor: shade(20, 6, 0.9),
