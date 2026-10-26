@@ -64,18 +64,18 @@ export default function Section({ id, title, isPhone, style, children }) {
 }
 
 const styles = {
-  // The frame is the background (border-image fills the middle too). Padding
-  // plus the frame's width keeps the content where it was.
+  // The frame is the background (border-image fills the middle too); the
+  // padding keeps the content clear of the dithered edge.
   panel: {
     marginTop: "40px",
     ...ditherFrame(3, EDGE),
-    padding: "9px 13px 13px",
+    padding: "18px 22px 22px",
     pointerEvents: "auto",
   },
   panelPhone: {
     marginTop: "26px",
     ...ditherFrame(2, EDGE),
-    padding: "7px 3px 9px",
+    padding: "14px 10px 16px",
   },
   header: {
     display: "flex",

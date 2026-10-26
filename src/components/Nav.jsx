@@ -117,7 +117,7 @@ const styles = {
     // Solid like the section panels, with a thinner dithered edge to suit
     // its height.
     ...ditherFrame(3, NAV_EDGE),
-    padding: "0 0 0 4px",
+    padding: "3px 3px 3px 7px",
     fontFamily: "var(--mono)",
   },
   // Centered across the top, every link visible without scrolling.
@@ -130,7 +130,7 @@ const styles = {
     x: "-50%",
     gap: "0",
     ...ditherFrame(2, NAV_EDGE),
-    padding: 0,
+    padding: "2px",
     maxWidth: "calc(100% - 16px)",
     // Fits from 360px wide; narrower than that, it scrolls sideways rather
     // than cutting Resume off.
