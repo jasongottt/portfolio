@@ -1,7 +1,7 @@
 /**
  * Palette helpers. Every accent on the site is the same hue at a different
- * lightness and alpha, so they all resolve from --hue (see theme.js) and rotate
- * together when the randomize button fires. --sat scales saturation per hue.
+ * lightness and alpha, so they all resolve from --hue (index.css): the
+ * indigo of the world's dusk sea. --sat scales the saturation.
  */
 export const tint = (saturation, lightness, alpha) =>
   `hsl(var(--hue) calc(${saturation}% * var(--sat)) ${lightness}%${

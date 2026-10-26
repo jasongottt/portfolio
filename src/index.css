@@ -5,10 +5,12 @@
 @import "@fontsource-variable/geist-mono";
 
 :root {
-  /* Rotation knobs for the whole palette. theme.js overrides these on the
-     root element; every accent below and in App.jsx derives from them. */
-  --hue: 262;
+  /* The site's one hue: the indigo of the world's dusk sea. Every accent
+     below and in palette.js derives from it. */
+  --hue: 248;
   --sat: 1;
+  /* The world's peach highlight, for primary buttons and the surname. */
+  --accent-warm: #ffd9a8;
 
   --text: #6b6375;
   --text-h: #08060d;
@@ -329,15 +331,9 @@ button:focus-visible {
   border-color: hsl(var(--hue) calc(50% * var(--sat)) 80% / 0.42) !important;
 }
 
-/* Cards tilt toward the pointer; App.jsx writes the angles as custom
-   properties on pointermove, so the transform itself stays in CSS. */
-.card-link {
-  perspective: 900px;
-}
+/* Project cards: a soft glow from the top edge on hover. */
 .project-card {
-  transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
   transition:
-    transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1),
     background-image 180ms ease,
     border-color 180ms ease;
 }
@@ -347,7 +343,7 @@ button:focus-visible {
   inset: 0;
   pointer-events: none;
   background: radial-gradient(
-    circle at var(--glare-x, 50%) var(--glare-y, 0%),
+    circle at 50% 0%,
     hsl(var(--hue) calc(60% * var(--sat)) 88% / 0.13),
     transparent 55%
   );
@@ -408,6 +404,22 @@ button:focus-visible {
   border-color: hsl(var(--hue) calc(45% * var(--sat)) 86% / 0.5) !important;
 }
 
+/* Click-to-play cover in the project popup. */
+.play-poster img {
+  transition: opacity 200ms ease;
+}
+.play-poster:hover img,
+.play-poster:focus-visible img {
+  opacity: 0.42 !important;
+}
+.play-poster .play-cta {
+  transition: background-color 160ms ease;
+}
+.play-poster:hover .play-cta,
+.play-poster:focus-visible .play-cta {
+  background-color: #ffffff !important;
+}
+
 /* The tile's border lives on its parent, so highlight with an inset ring. */
 .media-tile {
   transition: box-shadow 180ms ease;
@@ -416,17 +428,89 @@ button:focus-visible {
   box-shadow: inset 0 0 0 1px hsl(var(--hue) calc(45% * var(--sat)) 86% / 0.5);
 }
 
-.nav-scroll {
-  scrollbar-width: none;
+/* ------------------------------------------------------------------ *
+ *  Pixel sprites (world/pixelArt.js), as section headings wear them.
+ *  Each class is one color; SVG attributes can't read custom properties,
+ *  so the art takes these. Gold, mint, skin and hair stay fixed.
+ * ------------------------------------------------------------------ */
+
+.px-outline { fill: hsl(var(--hue) calc(40% * var(--sat)) 6%); }
+.px-light { fill: hsl(var(--hue) calc(40% * var(--sat)) 88%); }
+.px-mid { fill: hsl(var(--hue) calc(24% * var(--sat)) 58%); }
+.px-dark { fill: hsl(var(--hue) calc(35% * var(--sat)) 18%); }
+.px-pants { fill: hsl(var(--hue) calc(30% * var(--sat)) 24%); }
+.px-gold { fill: #f2c66e; }
+.px-mint { fill: #86ecb6; }
+.px-skin { fill: #f1c9a5; }
+.px-hair { fill: #5a3a22; }
+
+/* ------------------------------------------------------------------ *
+ *  The world (world/WorldBackground.jsx)
+ * ------------------------------------------------------------------ */
+
+/* Each landmark's label shows on hover or keyboard focus. */
+.world-landmark .world-label {
+  opacity: 0;
+  transition: opacity 140ms ease;
 }
-.nav-scroll::-webkit-scrollbar {
-  display: none;
+.world-landmark:hover .world-label,
+.world-landmark:focus-visible .world-label {
+  opacity: 1;
+}
+.world-landmark:focus-visible {
+  outline: none;
+}
+
+/* A circle under each landmark while the camera rests on the overview,
+   pulsing gently so it's clear they can be clicked. It grows on hover. A
+   thin dark outline keeps it visible on pale beaches. */
+.world-landmark .world-dot {
+  opacity: 0;
+  transition: opacity 300ms ease, scale 150ms ease;
+}
+[data-settled="true"] .world-landmark .world-dot {
+  opacity: 1;
+  animation: world-dot-pulse 1.8s ease-in-out infinite;
+}
+.world-landmark:hover .world-dot,
+.world-landmark:focus-visible .world-dot {
+  scale: 1.4;
+}
+@keyframes world-dot-pulse {
+  0%, 100% { box-shadow: 0 0 0 1.5px #07061a, 0 0 0 1.5px rgb(255 255 255 / 0.6); }
+  50% { box-shadow: 0 0 0 1.5px #07061a, 0 0 0 7px rgb(255 255 255 / 0); }
+}
+
+/* Selection brackets at the corners, blinking like a game cursor. */
+.world-landmark::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border: 2px solid var(--accent-warm);
+  opacity: 0;
+  pointer-events: none;
+  -webkit-mask: conic-gradient(at 10px 10px, #0000 75%, #000 0) 0 0 / calc(100% - 10px) calc(100% - 10px);
+  mask: conic-gradient(at 10px 10px, #0000 75%, #000 0) 0 0 / calc(100% - 10px) calc(100% - 10px);
+}
+.world-landmark:hover::before,
+.world-landmark:focus-visible::before {
+  opacity: 1;
+  animation: map-blink 1s steps(1) infinite;
+}
+@keyframes map-blink {
+  50% { opacity: 0.35; }
+}
+
+/* The Konami code: the world's colors sweep twice around the wheel, ending
+   back where they started. */
+.world-party {
+  animation: world-party 4.5s ease-out;
+}
+@keyframes world-party {
+  to { filter: hue-rotate(720deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .project-card {
-    transform: none;
-  }
   html {
     scroll-behavior: auto;
   }
