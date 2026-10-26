@@ -1,28 +1,12 @@
 import { ChevronDown } from "lucide-react";
 import { tint } from "../palette";
 
-// What Jason is up to, under the intro. Update as things change.
-const STATUS = [{ label: "Next", text: "SWE intern at ReliaQuest, summer 2027" }];
-
-/** The one-line intro and the Now / Next line. */
+/** The one-line intro under the name. */
 export function HeroIntro({ isPhone }) {
   return (
-    <>
-      <p style={{ ...styles.lead, ...(isPhone ? styles.leadPhone : {}) }}>
-        CS + Game Development student at Purdue University with a passion for human-computer interaction through interesting software and video games.
-      </p>
-      <p style={{ ...styles.status, ...(isPhone ? styles.statusPhone : {}) }}>
-        {STATUS.map(({ label, text }, index) => (
-          <span key={label} style={styles.statusItem}>
-            {index > 0 && !isPhone ? (
-              <span style={styles.statusDivider} aria-hidden="true">·</span>
-            ) : null}
-            <span style={styles.statusLabel}>{label}</span>
-            {text}
-          </span>
-        ))}
-      </p>
-    </>
+    <p style={{ ...styles.lead, ...(isPhone ? styles.leadPhone : {}) }}>
+      CS + Game Development student at Purdue University with a passion for human-computer interaction through interesting software and video games.
+    </p>
   );
 }
 
@@ -105,38 +89,6 @@ const styles = {
   leadPhone: {
     marginTop: "8px",
     fontSize: "0.92rem",
-  },
-  // Same voice as the meta lines on the project cards.
-  status: {
-    display: "flex",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: "4px 0",
-    marginTop: "12px",
-    fontFamily: "var(--mono)",
-    fontSize: "0.7rem",
-    letterSpacing: "0.12em",
-    textTransform: "uppercase",
-    color: tint(45, 86, 0.75),
-  },
-  // Stacked on phones, where the two items don't fit on one line.
-  statusPhone: {
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "2px",
-    marginTop: "10px",
-  },
-  statusItem: {
-    display: "inline-flex",
-    alignItems: "baseline",
-  },
-  statusLabel: {
-    marginRight: "8px",
-    color: tint(37, 86, 0.5),
-  },
-  statusDivider: {
-    margin: "0 12px",
-    color: tint(37, 86, 0.4),
   },
   scrollCue: {
     position: "absolute",

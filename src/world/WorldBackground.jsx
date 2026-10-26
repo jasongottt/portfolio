@@ -261,10 +261,6 @@ export default function WorldBackground({
             </p>
             <div ref={introRef} style={styles.fade}>
               <HeroIntro isPhone={isPhone} />
-              <button type="button" className="pressable" style={styles.explore} onClick={startExploring}>
-                Explore the islands
-                {!isPhone ? <kbd style={styles.kbd}>E</kbd> : null}
-              </button>
             </div>
           </div>
 
@@ -403,29 +399,6 @@ const styles = {
     opacity: 0,
     visibility: "hidden",
     transition: "opacity 600ms ease, visibility 600ms",
-  },
-  explore: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "10px",
-    marginTop: "18px",
-    padding: "9px 14px",
-    border: `1px solid ${RULE}`,
-    backgroundColor: shade(27, 4, 0.7),
-    color: "var(--accent-warm)",
-    fontFamily: "var(--mono)",
-    fontSize: "0.72rem",
-    letterSpacing: "0.12em",
-    textTransform: "uppercase",
-    cursor: "pointer",
-    pointerEvents: "auto",
-  },
-  kbd: {
-    padding: "1px 5px",
-    border: `1px solid ${RULE}`,
-    fontFamily: "var(--mono)",
-    fontSize: "0.64rem",
-    color: tint(40, 88, 0.75),
   },
   tapLayer: {
     position: "absolute",

@@ -24,9 +24,10 @@ Live previews from the brainstorm (not committed, under `.superpowers/brainstorm
 - **The opening:** when the page loads at the top, **JASON.** appears in peach exactly over the island letters. It's drawn from the same strokes the islands are rasterized from (`nameIslands.js`), as SVG paths with round caps, as thick as the islands, projected with the same camera math as the world but without three.js (`src/world/nameplate.js`), so it covers each island but for the coastline's wobble, on any screen and in both layouts. While the world loads, the page is a flat color matching the dithered sea (`SEA_AVERAGE`); the world reports its first drawn frame, and the water and the name fade in together then (350 ms), so the name never shows without the islands under it. It holds just under a second, then fades letter by letter, J first, to reveal the islands. Scrolling first, or loading partway down the page, skips it; it never shows if WebGL fails. The landmark circles wait until it's gone.
 - **The view:** the whole world, seen from high up and nearly straight down, so the five letter islands read as **JASON.** in the dusk sea. On landscape screens the camera stands 35% further back than a tight fit, so the word sits in open sea at about 70% of the width; the stacked phone layout fits the width. The sea moves gently. The character stands at home on the J.
 - **GOTTESMAN:** set in widely spaced bold capitals (Geist Mono, peach), centered under the island word. It is visible **only once the camera has settled on the full zoomed-out view**. It fades out the moment the camera starts moving, and fades back in only after the camera settles again at the end.
-- **The intro and status line:** the current one-sentence intro and a "Next" line (the ReliaQuest internship) sit under GOTTESMAN, centered, with the same show/hide rule.
+- **The intro:** the one-sentence intro sits under GOTTESMAN, centered, with the same show/hide rule. Nothing else: no status line or buttons on the first screen.
 - **The heading:** the page's `<h1>` stays "Jason Gottesman" as real text for screen readers and search engines. It is visually hidden, since the islands and GOTTESMAN show it.
 - **Navigation:** once you scroll past the top, a small pill of section links appears: in the top-right corner on desktop, centered across the top on phones. It has no name, shows each section's level on desktop, and marks the section you're in in peach. On phones its items are tighter and Resume drops its arrow, so the whole row fits from 360px wide; narrower than that, the pill scrolls sideways.
+- **Panels and nav:** the section panels and the nav pill are solid (`#100d26`, the site's hue at 50% saturation, 10% lightness), with no blur, and their edges dissolve into the world in the world's own dither: an 8x8 Bayer fade in 3 px pixels (2 on phones), 8 pixels deep on the panels and 3 on the nav (`src/ditherFrame.js`, a nine-slice `border-image`).
 
 ### Scrolling
 
@@ -44,7 +45,12 @@ Live previews from the brainstorm (not committed, under `.superpowers/brainstorm
 - **Walking:** the character walks from one landmark to the next and arrives as the next section reaches it, then stands at the landmark while you read. On desktop each walk takes about half a screen of scrolling; on phones it happens while the gap scrolls past. It crosses plank bridges between letters. Its position is tied to scroll position, so scrolling back up walks it back. It uses the two-frame walk and faces the direction it walks on screen.
 - **The camera:** follows from behind and above the character, eased so it never snaps. The character sits a little above the middle of the screen (42% down): centered on phones, in the middle of the open side on desktop. The overview is always centered.
 - **The last screen:** after Contact, an empty screen with a "Back to the top" link. The camera pulls back to the same overview as the top while it scrolls in, and GOTTESMAN returns once it settles.
-- **The page itself:** the sections (About, Experience, Projects, Contact) are the same HTML panels over the world, reflowed for the column: Experience puts dates above each role, and Contact is two by two. Clicks on the empty page around them go through to the world's landmarks.
+- **The page itself:** the sections (About, Experience, Projects, Contact) are the same HTML panels over the world, reworked for the narrow column:
+  - **Experience** is a timeline: a thin line with a dot per role (filled for the one still going), upcoming first, then ongoing, then by end date. Each role shows its dates and location, title, company (with any earlier title there, "Previously Software Engineer") and a single sentence (`summary` in `experience.js`); the bullet points, tech and project link sit behind a "Show details" toggle.
+  - **Projects** is a two-column grid of tiles (screenshot, year and badges, title, two lines of description on wider screens). The first four in `projects.js` show, and a "Show all N projects" button expands the grid in place ("Show fewer" folds it back). This replaced a sideways-scrolling rail, which showed only a card and a half in the column.
+  - **Contact** is a plain list, one row per way to reach me: Email, GitHub, LinkedIn, Instagram (the resume is the nav's button), each just an icon and the handle, the whole row a link (screen readers hear the service's name too). Email has a small icon button that copies the address (a check mark for two seconds, and screen readers hear "Email address copied").
+
+  Clicks on the empty page around them go through to the world's landmarks.
 
 ### Landmarks and clicking
 
@@ -148,7 +154,7 @@ Plain three.js with a hand-written post pass. No React Three Fiber, no postproce
   - **Paths:** a chain in that order: About, Experience, Projects, Contact, Ship Happens, Shadow Boxing, Resume.
 - **`src/sections/Hero.jsx`:** becomes an empty first screen. It holds the hidden `<h1>` and the scroll cue; GOTTESMAN and the intro live in `WorldBackground`, since they follow the camera. It exports the intro (`HeroIntro`), which `WorldBackground` shows, and which the hero shows itself in the no-WebGL fallback.
 - **`src/components/Section.jsx`:** adds the gap above each section after About on phones, and panels take clicks back from the page.
-- **`src/sections/Experience.jsx`, `Contact.jsx`:** reflow for the column. `useViewport` drops `isNarrowDesktop`.
+- **`src/sections/Experience.jsx`, `Projects.jsx`, `Contact.jsx`, `src/components/ProjectCard.jsx`:** reworked for the column (timeline, tile grid, contact list; see "The page itself"). `useViewport` drops `isNarrowDesktop`.
 - **`src/App.jsx`:** renders `WorldBackground` instead of `Background`, drops the shuffle, puts the sections in the left column on desktop, adds the last screen, and lets clicks through the empty page.
 - **`index.css`:** `--hue` fixed, `--accent-warm` added, the 2D map's tile classes replaced by the landmark-label and party styles.
 - **`mapGraph.js`, `pixelArt.js`, `PixelSprite.jsx`:** move from `components/worldmap/` to `src/world/`, minus the 2D map's SVG helpers. `mapGraph.js` gains `hopCells` for the walk.
@@ -222,7 +228,7 @@ Rendering stops while the tab is hidden.
 
 Built on phase 1's world, character and camera.
 
-- **Entry:** an "Explore the islands" button under the intro, an Explore link in the nav, or pressing E. The page panels and nav fade away (still laid out, so the world can read the sections), scrolling locks, and the camera drops behind the character from wherever the scroll had it. Focus moves to the Explore bar.
+- **Entry:** the Explore link in the nav (which shows once the first screen is behind you), or pressing E anywhere. The page panels and nav fade away (still laid out, so the world can read the sections), scrolling locks, and the camera drops behind the character from wherever the scroll had it. Focus moves to the Explore bar.
 - **Moving:**
   - Arrow keys or WASD: up walks away from the camera, right to the screen's right. One axis at a time, so walking into the sea slides along the shore.
   - Clicking or tapping the ground walks there along the shortest route of walkable cells (`gridPath` in `mapGraph.js`), to the walkable cell nearest the spot.

@@ -1,5 +1,6 @@
 import { worldMap } from "../data/worldMap";
-import { PANEL_BG, RULE, RULE_SOFT, tint } from "../palette";
+import { ditherFrame } from "../ditherFrame";
+import { RULE_SOFT, tint } from "../palette";
 import { SPRITES } from "../world/pixelArt";
 import PixelSprite from "../world/PixelSprite";
 
@@ -7,6 +8,9 @@ import PixelSprite from "../world/PixelSprite";
 // landmark and level number.
 const stageFor = (id) =>
   worldMap.stages.find((stage) => stage.action.type === "section" && stage.action.target === id);
+
+// How many dither pixels the panels' edges take to fade (ditherFrame.js).
+const EDGE = 8;
 
 // On phones the panels are full width, so each section the character walks
 // to gets open space above it, where the world shows between panels
@@ -30,7 +34,8 @@ function StageBadge({ icon }) {
   );
 }
 
-// Every page section is the same squared, blurred panel under a ruled title.
+// Every page section is the same solid panel, dithered at the edges, under a
+// ruled title.
 // `style` layers on top for sections that need more (the projects rail clips).
 export default function Section({ id, title, isPhone, style, children }) {
   const stage = stageFor(id);
@@ -59,17 +64,18 @@ export default function Section({ id, title, isPhone, style, children }) {
 }
 
 const styles = {
+  // The frame is the background (border-image fills the middle too). Padding
+  // plus the frame's width keeps the content where it was.
   panel: {
     marginTop: "40px",
-    padding: "32px 36px 36px",
-    border: `1px solid ${RULE}`,
-    backgroundColor: PANEL_BG,
-    backdropFilter: "blur(8px)",
+    ...ditherFrame(3, EDGE),
+    padding: "9px 13px 13px",
     pointerEvents: "auto",
   },
   panelPhone: {
     marginTop: "26px",
-    padding: "22px 18px 24px",
+    ...ditherFrame(2, EDGE),
+    padding: "7px 3px 9px",
   },
   header: {
     display: "flex",

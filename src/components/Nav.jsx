@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { ArrowUpRight } from "lucide-react";
 import { worldMap } from "../data/worldMap";
-import { RULE, shade, tint } from "../palette";
+import { ditherFrame } from "../ditherFrame";
+import { shade, tint } from "../palette";
 
 // One link per section, with the level number its landmark carries.
 const navSections = worldMap.stages
@@ -15,6 +16,10 @@ const MINT_TEXT = "rgba(134, 236, 182, 0.9)";
 // A section counts as the current one once its top passes this far down
 // the screen.
 const CURRENT_LINE = 0.45;
+
+// How many dither pixels the pill's edge takes to fade (ditherFrame.js);
+// fewer than the panels', since the pill is short.
+const NAV_EDGE = 3;
 
 /**
  * A small floating pill of section links, out of the way of the world: the
@@ -109,10 +114,10 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: "4px",
-    padding: "4px 4px 4px 8px",
-    border: `1px solid ${RULE}`,
-    backgroundColor: shade(27, 4, 0.82),
-    backdropFilter: "blur(10px)",
+    // Solid like the section panels, with a thinner dithered edge to suit
+    // its height.
+    ...ditherFrame(3, NAV_EDGE),
+    padding: "0 0 0 4px",
     fontFamily: "var(--mono)",
   },
   // Centered across the top, every link visible without scrolling.
@@ -124,7 +129,8 @@ const styles = {
     // has to go through Motion too.
     x: "-50%",
     gap: "0",
-    padding: "3px 3px 3px 4px",
+    ...ditherFrame(2, NAV_EDGE),
+    padding: 0,
     maxWidth: "calc(100% - 16px)",
     // Fits from 360px wide; narrower than that, it scrolls sideways rather
     // than cutting Resume off.
@@ -133,7 +139,7 @@ const styles = {
   },
   // Tighter items on phones, so all six fit on one row.
   itemPhone: {
-    padding: "6px 5px",
+    padding: "6px 4px",
     fontSize: "0.65rem",
     letterSpacing: "0",
   },

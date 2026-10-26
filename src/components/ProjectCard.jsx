@@ -1,37 +1,28 @@
-import { RULE, RULE_SOFT, shade, tint } from "../palette";
-import { ProjectBadges, TechLine } from "./ProjectMeta";
+import { RULE, shade, tint } from "../palette";
+import { ProjectBadges } from "./ProjectMeta";
 
+// One tile in the projects grid: the first screenshot, year and badges, the
+// title, and on wider screens two lines of description.
 export default function ProjectCard({ project, isPhone, onOpen }) {
   return (
     <button
       type="button"
       data-project-card=""
       className="card-link"
-      style={{ ...styles.cardLink, ...(isPhone ? styles.cardLinkPhone : {}) }}
+      style={styles.cardLink}
       onClick={() => onOpen(project)}
       aria-label={`Open details for ${project.title}`}
     >
-      <article
-        className="project-card"
-        style={{ ...styles.card, ...(isPhone ? styles.cardPhone : {}) }}
-      >
+      <article className="project-card" style={styles.card}>
         <div style={styles.thumb}>
-          <img
-            src={project.screenshots[0].path}
-            alt=""
-            loading="lazy"
-            style={styles.thumbImage}
-          />
+          <img src={project.screenshots[0].path} alt="" loading="lazy" style={styles.thumbImage} />
         </div>
         <div style={{ ...styles.body, ...(isPhone ? styles.bodyPhone : {}) }}>
           <div style={styles.metaRow}>
             <ProjectBadges {...project} />
           </div>
-          <h3 style={styles.title}>{project.title}</h3>
-          <p style={styles.description}>{project.description}</p>
-          <div style={styles.techRow}>
-            <TechLine tech={project.tech} />
-          </div>
+          <h3 style={{ ...styles.title, ...(isPhone ? styles.titlePhone : {}) }}>{project.title}</h3>
+          {!isPhone ? <p style={styles.description}>{project.description}</p> : null}
         </div>
       </article>
     </button>
@@ -46,17 +37,12 @@ const styles = {
     color: "inherit",
     cursor: "pointer",
     display: "block",
-    flex: "0 0 300px",
+    minWidth: 0,
     padding: 0,
     textAlign: "inherit",
   },
-  cardLinkPhone: {
-    flex: "0 0 min(78vw, 280px)",
-  },
   card: {
     position: "relative",
-    width: "300px",
-    minHeight: "418px",
     height: "100%",
     border: `1px solid ${RULE}`,
     backgroundColor: shade(25, 5, 0.82),
@@ -64,10 +50,6 @@ const styles = {
     overflow: "hidden",
     display: "flex",
     flexDirection: "column",
-  },
-  cardPhone: {
-    width: "min(78vw, 280px)",
-    minHeight: "396px",
   },
   thumb: {
     position: "relative",
@@ -84,37 +66,36 @@ const styles = {
     display: "block",
   },
   body: {
-    display: "flex",
-    flexDirection: "column",
-    flexGrow: 1,
-    padding: "18px 20px 20px",
+    padding: "10px 12px 12px",
   },
   bodyPhone: {
-    padding: "16px 18px 18px",
+    padding: "8px 9px 10px",
   },
   metaRow: {
     display: "flex",
+    flexWrap: "wrap",
     alignItems: "baseline",
-    gap: "10px",
-    marginBottom: "10px",
+    gap: "2px 8px",
   },
   title: {
-    margin: "0 0 8px",
-    fontSize: "1.75rem",
-    lineHeight: 1,
-    letterSpacing: "-0.035em",
+    margin: "5px 0 4px",
+    fontSize: "1.15rem",
+    lineHeight: 1.1,
+    letterSpacing: "-0.02em",
     color: tint(100, 98),
     fontFamily: '"Playfair Display", serif',
     fontWeight: 500,
   },
+  titlePhone: {
+    fontSize: "1rem",
+  },
   description: {
     color: tint(38, 89, 0.7),
-    marginBottom: "16px",
-    fontSize: "0.9rem",
-  },
-  techRow: {
-    marginTop: "auto",
-    paddingTop: "12px",
-    borderTop: `1px solid ${RULE_SOFT}`,
+    fontSize: "0.78rem",
+    lineHeight: 1.45,
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden",
   },
 };

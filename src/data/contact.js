@@ -4,8 +4,8 @@ export const contactLinks = [
   {
     icon: Mail,
     label: "Email",
-    value: "jgottes@purdue.edu",
-    href: "mailto:jgottes@purdue.edu",
+    value: "jgottesman322@gmail.com",
+    href: "mailto:jgottesman322@gmail.com",
   },
   {
     icon: Github,

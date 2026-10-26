@@ -371,29 +371,13 @@ button:focus-visible {
   color: #ffffff !important;
 }
 
+/* Contact rows: the same violet wash as the project cards on hover. */
 .contact-row {
-  transition:
-    background-color 180ms ease,
-    border-color 180ms ease;
+  transition: background-color 180ms ease;
 }
-.contact-row:hover {
+.contact-row:hover,
+.contact-row:focus-visible {
   background-image: linear-gradient(hsl(var(--hue) calc(40% * var(--sat)) 48% / 0.16), hsl(var(--hue) calc(40% * var(--sat)) 48% / 0.16));
-  border-color: hsl(var(--hue) calc(50% * var(--sat)) 80% / 0.4) !important;
-}
-
-.rail-arrow {
-  transition:
-    opacity 160ms ease,
-    background-color 160ms ease,
-    border-color 160ms ease;
-}
-.rail-arrow:hover:not(:disabled) {
-  background-image: linear-gradient(hsl(var(--hue) calc(40% * var(--sat)) 48% / 0.22), hsl(var(--hue) calc(40% * var(--sat)) 48% / 0.22));
-  border-color: hsl(var(--hue) calc(50% * var(--sat)) 80% / 0.4) !important;
-}
-.rail-arrow:disabled {
-  opacity: 0.22;
-  cursor: default;
 }
 
 .icon-button {
@@ -511,14 +495,6 @@ button:focus-visible {
   0%, 100% { translate: 0 0; opacity: 0.45; }
   50% { translate: 0 7px; opacity: 0.8; }
 }
-/* On short screens the intro reaches the bottom, and the arrow would sit on
-   the Explore button. */
-@media (max-height: 760px) {
-  .scroll-cue {
-    display: none !important;
-  }
-}
-
 /* Selection brackets at the corners, blinking like a game cursor. */
 .world-landmark::before {
   content: "";
