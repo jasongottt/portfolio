@@ -1,5 +1,5 @@
 import { worldMap } from "../data/worldMap";
-import { ditherFrame } from "../ditherFrame";
+import { DITHERED, ditherFrame } from "../ditherFrame";
 import { RULE_SOFT, tint } from "../palette";
 import { SPRITES } from "../world/pixelArt";
 import PixelSprite from "../world/PixelSprite";
@@ -12,11 +12,13 @@ const stageFor = (id) =>
 // How many dither pixels the panels' edges take to fade (ditherFrame.js).
 const EDGE = 8;
 
-// On phones the panels are full width, so each section the character walks
-// to gets open space above it, where the world shows between panels
-// (world/journey.js walks it as the gap scrolls by). On desktop the world is
-// always in view beside the column, so no gap is needed.
-const TRAVEL_GAP_PHONE = "40svh";
+// Each section the character walks to gets open space above it. On phones
+// the panels are full width, so that's where the world shows between them,
+// and the walk happens as the gap scrolls by (world/journey.js). On desktop
+// the world is always in view beside the column; the gap gives the walk room
+// between panels rather than under the last one's text.
+const TRAVEL_GAP_PHONE = "50svh";
+const TRAVEL_GAP_DESKTOP = "16svh";
 
 // A stage's pixel landmark, at a size that sits beside a section title.
 function StageBadge({ icon }) {
@@ -35,8 +37,7 @@ function StageBadge({ icon }) {
 }
 
 // Every page section is the same solid panel, dithered at the edges, under a
-// ruled title.
-// `style` layers on top for sections that need more (the projects rail clips).
+// ruled title. `style` layers on top for sections that need more.
 export default function Section({ id, title, isPhone, style, children }) {
   const stage = stageFor(id);
   const travels = stage && stage.id !== worldMap.start;
@@ -48,7 +49,7 @@ export default function Section({ id, title, isPhone, style, children }) {
         ...styles.panel,
         ...style,
         ...(isPhone ? styles.panelPhone : {}),
-        ...(travels && isPhone ? { marginTop: TRAVEL_GAP_PHONE } : {}),
+        ...(travels ? { marginTop: isPhone ? TRAVEL_GAP_PHONE : TRAVEL_GAP_DESKTOP } : {}),
       }}
     >
       <div style={styles.header}>
@@ -64,18 +65,19 @@ export default function Section({ id, title, isPhone, style, children }) {
 }
 
 const styles = {
-  // The frame is the background (border-image fills the middle too); the
-  // padding keeps the content clear of the dithered edge.
+  // The frame is the background (ditherFrame.js). Dithered, its edge takes
+  // room of its own, so the padding is less; plain, it's the original 1px
+  // rule and padding.
   panel: {
     marginTop: "40px",
     ...ditherFrame(3, EDGE),
-    padding: "18px 22px 22px",
+    padding: DITHERED ? "18px 22px 22px" : "32px 36px 36px",
     pointerEvents: "auto",
   },
   panelPhone: {
     marginTop: "26px",
     ...ditherFrame(2, EDGE),
-    padding: "14px 10px 16px",
+    padding: DITHERED ? "14px 10px 16px" : "22px 18px 24px",
   },
   header: {
     display: "flex",

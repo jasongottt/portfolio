@@ -2,14 +2,15 @@ import { RULE, shade, tint } from "../palette";
 import { ProjectBadges } from "./ProjectMeta";
 
 // One tile in the projects grid: the first screenshot, year and badges, the
-// title, and on wider screens two lines of description.
-export default function ProjectCard({ project, isPhone, onOpen }) {
+// title, and on wider screens two lines of description. `style` places it in
+// the grid.
+export default function ProjectCard({ project, isPhone, onOpen, style }) {
   return (
     <button
       type="button"
       data-project-card=""
       className="card-link"
-      style={styles.cardLink}
+      style={{ ...styles.cardLink, ...style }}
       onClick={() => onOpen(project)}
       aria-label={`Open details for ${project.title}`}
     >

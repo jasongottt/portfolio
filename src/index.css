@@ -380,6 +380,54 @@ button:focus-visible {
   background-image: linear-gradient(hsl(var(--hue) calc(40% * var(--sat)) 48% / 0.16), hsl(var(--hue) calc(40% * var(--sat)) 48% / 0.16));
 }
 
+/* The Projects drawer's tab: centered on the panel's edge, sliding out a
+   little on hover like the About polaroids. */
+.drawer-tab {
+  transform: translateY(-50%);
+  transition: transform 160ms ease;
+}
+.drawer-tab:hover,
+.drawer-tab:focus-visible {
+  transform: translate(6px, -50%);
+}
+
+/* Experience timeline: titles turn peach on hover, and the ongoing role's dot
+   sends out a slow ring, like the world's landmarks. */
+.xp-row .xp-role {
+  transition: color 150ms ease;
+}
+.xp-row:hover .xp-role,
+.xp-row:focus-visible .xp-role {
+  color: var(--accent-warm) !important;
+}
+.xp-dot-now::after {
+  content: "";
+  position: absolute;
+  inset: -1.5px;
+  border-radius: 50%;
+  border: 1.5px solid hsl(var(--hue) calc(60% * var(--sat)) 84%);
+  animation: xp-pulse 2.4s ease-out infinite;
+}
+@keyframes xp-pulse {
+  from {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  to {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .xp-dot-now::after {
+    animation: none;
+    opacity: 0;
+  }
+  .xp-details {
+    transition: none !important;
+  }
+}
+
 .icon-button {
   transition: background-color 160ms ease, border-color 160ms ease;
 }

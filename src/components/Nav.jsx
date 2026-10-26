@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { ArrowUpRight } from "lucide-react";
 import { worldMap } from "../data/worldMap";
-import { ditherFrame } from "../ditherFrame";
+import { DITHERED, ditherFrame } from "../ditherFrame";
 import { shade, tint } from "../palette";
 
 // One link per section, with the level number its landmark carries.
@@ -117,7 +117,7 @@ const styles = {
     // Solid like the section panels, with a thinner dithered edge to suit
     // its height.
     ...ditherFrame(3, NAV_EDGE),
-    padding: "3px 3px 3px 7px",
+    padding: DITHERED ? "3px 3px 3px 7px" : "4px 4px 4px 8px",
     fontFamily: "var(--mono)",
   },
   // Centered across the top, every link visible without scrolling.
@@ -130,7 +130,7 @@ const styles = {
     x: "-50%",
     gap: "0",
     ...ditherFrame(2, NAV_EDGE),
-    padding: "2px",
+    padding: DITHERED ? "2px" : "3px 3px 3px 4px",
     maxWidth: "calc(100% - 16px)",
     // Fits from 360px wide; narrower than that, it scrolls sideways rather
     // than cutting Resume off.
@@ -139,7 +139,7 @@ const styles = {
   },
   // Tighter items on phones, so all six fit on one row.
   itemPhone: {
-    padding: "6px 4px",
+    padding: DITHERED ? "6px 4px" : "6px 5px",
     fontSize: "0.65rem",
     letterSpacing: "0",
   },

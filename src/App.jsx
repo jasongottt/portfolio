@@ -21,6 +21,8 @@ export default function App() {
   // the popup scrolls straight to its game.
   const [focusPlayable, setFocusPlayable] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  // A polaroid from About is open (Polaroids.jsx handles its own Escape).
+  const [viewingPhoto, setViewingPhoto] = useState(false);
   // "loading", "ready", or "failed" if the world can't run on this device.
   const [worldStatus, setWorldStatus] = useState("loading");
   // Explore mode: the visitor walks the world, and the page steps aside.
@@ -55,7 +57,7 @@ export default function App() {
   // Freeze the page behind an open overlay or while exploring, compensating
   // for the scrollbar so the layout doesn't jump sideways as it disappears.
   useEffect(() => {
-    if (!selectedProject && !selectedImage && !exploring) return;
+    if (!selectedProject && !selectedImage && !viewingPhoto && !exploring) return;
 
     const { body } = document;
     const previousOverflow = body.style.overflow;
@@ -69,13 +71,13 @@ export default function App() {
       body.style.overflow = previousOverflow;
       body.style.paddingRight = previousPadding;
     };
-  }, [selectedProject, selectedImage, exploring]);
+  }, [selectedProject, selectedImage, viewingPhoto, exploring]);
 
   return (
     <>
       <WorldBackground
         isPhone={isPhone}
-        paused={Boolean(selectedProject || selectedImage)}
+        paused={Boolean(selectedProject || selectedImage || viewingPhoto)}
         party={party}
         exploring={exploring}
         onExploringChange={setExploring}
@@ -96,7 +98,7 @@ export default function App() {
         <Hero heroRef={heroRef} isPhone={isPhone} showHeading={worldStatus === "failed"} />
 
         <main style={{ ...styles.content, ...(isPhone ? {} : styles.column) }}>
-          <About isPhone={isPhone} />
+          <About isPhone={isPhone} onViewingPhoto={setViewingPhoto} />
           <Experience isPhone={isPhone} onOpenProject={openProjectByTitle} />
           <Projects isPhone={isPhone} onOpenProject={openProject} />
           <Contact isPhone={isPhone} />
