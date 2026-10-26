@@ -24,6 +24,9 @@ const playableCount = projects.filter((project) => project.playableEmbed).length
  *   "from>to" in the same order the path is listed in `paths`. Where a path
  *   crosses water, the world lays a plank bridge.
  *
+ * - secret: what Explore mode hides for people who wander. It washes up on
+ *   the island of the `island` stage, as far from it as that island goes.
+ *
  * Paths only meet at stages, and no two paths may leave a stage in the same
  * direction, so a direction always has one answer. worldMap.test.js checks
  * both layouts.
@@ -96,6 +99,13 @@ export const worldMap = {
       needsKeyboard: true,
     },
   ],
+  secret: {
+    island: "about",
+    title: "A note in a bottle",
+    text: "You found it! Most people just scroll past, so thanks for taking a walk around. If you liked wandering my little world, I'd love to hear from you.",
+    sign: "Jason",
+    action: { label: "Say hi", type: "section", target: "contact" },
+  },
   paths: [
     ["about", "experience"],
     ["experience", "projects"],

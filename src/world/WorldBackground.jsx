@@ -1,14 +1,28 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useReducedMotion } from "motion/react";
 import { worldMap } from "../data/worldMap";
 import { RULE, shade, tint } from "../palette";
 import { HeroIntro } from "../sections/Hero";
-import { LAND_RAMP, MINT, SEA_RAMP } from "./dusk";
+import { LAND_RAMP, MINT, SEA_AVERAGE, SEA_RAMP } from "./dusk";
+import { ExploreHud, ExploreNote } from "./ExploreHud";
+import { nameplate } from "./nameplate";
 
 // The stops the character walks between: one per page section, in order.
 const STOPS = worldMap.stages.filter((stage) => stage.action.type === "section");
 
 const coarsePointer = typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches;
+
+// The opening: JASON. drawn over the islands. It fades in with the world,
+// over APPEAR_MS, holds for HOLD_MS, then fades out letter by letter over
+// FADE_MS.
+const APPEAR_MS = 350;
+const HOLD_MS = 900;
+const FADE_MS = 1400;
+const FADE_STAGGER_MS = 90;
+
+const isTyping = (target) =>
+  target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+const isControl = (target) => target instanceof HTMLElement && Boolean(target.closest("button, a"));
 
 function accessibleName(stage) {
   if (stage.action.type === "section") return `${stage.label}, go to section`;
@@ -25,8 +39,24 @@ function accessibleName(stage) {
  * The three.js side loads after first paint, behind a still dusk gradient.
  * `onStatusChange` reports "ready", or "failed" if WebGL can't run, in which
  * case only the gradient shows and the page heading takes over.
+ *
+ * On load, the name sits over the islands, drawn from the same strokes the
+ * islands are made from (nameplate.js), then fades to reveal them.
+ *
+ * Explore mode lets the visitor walk the character around. `exploring` is
+ * owned by the page (App.jsx), which hides itself meanwhile; this asks to
+ * change it through `onExploringChange`, from the Explore button or E, and
+ * Escape or Leave.
  */
-export default function WorldBackground({ isPhone, paused, party, onOpenProject, onStatusChange }) {
+export default function WorldBackground({
+  isPhone,
+  paused,
+  party,
+  exploring,
+  onExploringChange,
+  onOpenProject,
+  onStatusChange,
+}) {
   const rootRef = useRef(null);
   const canvasRef = useRef(null);
   const titleBlockRef = useRef(null);
@@ -34,7 +64,19 @@ export default function WorldBackground({ isPhone, paused, party, onOpenProject,
   const introRef = useRef(null);
   const landmarkRefs = useRef(new Map());
   const worldRef = useRef(null);
+  const hudRef = useRef(null);
+  // Where focus was before exploring, to put it back after.
+  const returnFocusRef = useRef(null);
   const [status, setStatus] = useState("loading");
+  // Whether the world has drawn its first frame. The water and the name
+  // fade in together then, not before.
+  const [drawn, setDrawn] = useState(false);
+  const [near, setNear] = useState(null);
+  const [noteOpen, setNoteOpen] = useState(false);
+  // The opening name: "shown", "fading" or "gone". Skipped if the page
+  // opens scrolled away from the top, where the islands aren't.
+  const [opening, setOpening] = useState(() => (window.scrollY < 40 ? "shown" : "gone"));
+  const [letters, setLetters] = useState(() => nameplate(window.innerWidth, window.innerHeight));
   const reducedMotion = useReducedMotion();
 
   useEffect(() => {
@@ -52,6 +94,8 @@ export default function WorldBackground({ isPhone, paused, party, onOpenProject,
           titleBlock: titleBlockRef.current,
           surname: surnameRef.current,
           intro: introRef.current,
+          onNear: setNear,
+          onFirstFrame: () => setDrawn(true),
           onLost: () => setStatus("failed"),
         });
         setStatus("ready");
@@ -80,26 +124,134 @@ export default function WorldBackground({ isPhone, paused, party, onOpenProject,
     onStatusChange?.(status);
   }, [status, onStatusChange]);
 
-  const enter = (stage) => {
-    if (stage.action.type === "section") {
-      document
-        .getElementById(stage.action.target)
-        ?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
-    } else {
-      onOpenProject(stage.action.title, { focusPlayable: true });
+  // Hold the name over the islands until the world has drawn them, then
+  // fade it away. Scrolling first fades it at once.
+  useEffect(() => {
+    if (opening === "gone") return;
+    if (status === "failed") {
+      setOpening("gone");
+      return;
     }
+    const onResize = () => setLetters(nameplate(window.innerWidth, window.innerHeight));
+    const onScroll = () => window.scrollY > 20 && setOpening((now) => (now === "shown" ? "fading" : now));
+    window.addEventListener("resize", onResize);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    const timers = [];
+    if (drawn && opening === "shown") timers.push(setTimeout(() => setOpening("fading"), APPEAR_MS + HOLD_MS));
+    if (opening === "fading") {
+      const total = FADE_MS + FADE_STAGGER_MS * letters.length;
+      timers.push(setTimeout(() => setOpening("gone"), total));
+    }
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", onScroll);
+      timers.forEach(clearTimeout);
+    };
+  }, [status, drawn, opening, letters.length]);
+
+  useEffect(() => {
+    worldRef.current?.setExploring(exploring);
+    if (exploring) hudRef.current?.focus();
+  }, [exploring, status]);
+
+  const scrollToSection = (id) =>
+    document.getElementById(id)?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
+
+  const enter = (stage) => {
+    if (stage.action.type === "section") scrollToSection(stage.action.target);
+    else onOpenProject(stage.action.title, { focusPlayable: true });
   };
+
+  const startExploring = () => {
+    returnFocusRef.current = document.activeElement;
+    onExploringChange(true);
+  };
+
+  const stopExploring = () => {
+    setNoteOpen(false);
+    onExploringChange(false);
+    const previous = returnFocusRef.current;
+    if (previous instanceof HTMLElement && previous.isConnected) previous.focus({ preventScroll: true });
+  };
+
+  // Leaves Explore mode to do what the landmark's button does. A section
+  // waits a frame, for the page to come back and unlock its scrolling.
+  const leaveFor = (action) => {
+    if (action.type === "link") window.open(action.href, "_blank", "noopener,noreferrer");
+    stopExploring();
+    if (action.type === "section") requestAnimationFrame(() => scrollToSection(action.target));
+    if (action.type === "project") onOpenProject(action.title, { focusPlayable: true });
+  };
+
+  const visit = (id) => {
+    if (id === "secret") setNoteOpen(true);
+    else leaveFor(worldMap.stages.find((stage) => stage.id === id).action);
+  };
+
+  const onKeyDown = useEffectEvent((event) => {
+    if (status !== "ready" || paused || event.defaultPrevented) return;
+    if (event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return;
+    if (!exploring) {
+      if (event.code === "KeyE") {
+        event.preventDefault();
+        startExploring();
+      }
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      if (noteOpen) setNoteOpen(false);
+      else stopExploring();
+    } else if (event.key === "Enter" && near && !noteOpen && !isControl(event.target)) {
+      event.preventDefault();
+      visit(near);
+    }
+  });
+
+  useEffect(() => {
+    const listener = (event) => onKeyDown(event);
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  }, []);
 
   const failed = status === "failed";
 
   return (
-    <div ref={rootRef} style={styles.root}>
+    <div
+      ref={rootRef}
+      style={{ ...styles.root, ...(failed ? styles.rootFallback : {}) }}
+      data-opening={opening !== "gone" ? "" : undefined}
+    >
       <canvas
         ref={canvasRef}
         aria-hidden="true"
         className={party && !reducedMotion ? "world-party" : undefined}
-        style={{ ...styles.canvas, opacity: status === "ready" ? 1 : 0 }}
+        style={{ ...styles.canvas, opacity: drawn ? 1 : 0 }}
       />
+
+      {opening !== "gone" ? (
+        <svg style={styles.nameplate} aria-hidden="true">
+          {letters.map(({ char, paths, strokeWidth }, index) => (
+            <g
+              key={char}
+              style={{
+                ...styles.nameLetter,
+                ...(opening === "fading"
+                  ? { opacity: 0, transition: `opacity ${FADE_MS}ms ease ${index * FADE_STAGGER_MS}ms` }
+                  : { opacity: drawn ? 1 : 0 }),
+              }}
+            >
+              {/* A dark copy a few pixels down, as a drop shadow. */}
+              {paths.map((d, i) => (
+                <path key={`shadow-${i}`} d={d} strokeWidth={strokeWidth} stroke={SEA_RAMP[0]} transform="translate(0 4)" />
+              ))}
+              {paths.map((d, i) => (
+                <path key={i} d={d} strokeWidth={strokeWidth} stroke="var(--accent-warm)" />
+              ))}
+            </g>
+          ))}
+        </svg>
+      ) : null}
 
       {!failed ? (
         <>
@@ -109,6 +261,10 @@ export default function WorldBackground({ isPhone, paused, party, onOpenProject,
             </p>
             <div ref={introRef} style={styles.fade}>
               <HeroIntro isPhone={isPhone} />
+              <button type="button" className="pressable" style={styles.explore} onClick={startExploring}>
+                Explore the islands
+                {!isPhone ? <kbd style={styles.kbd}>E</kbd> : null}
+              </button>
             </div>
           </div>
 
@@ -150,6 +306,27 @@ export default function WorldBackground({ isPhone, paused, party, onOpenProject,
               </button>
             );
           })}
+
+          {exploring ? (
+            <>
+              {/* Clicks and taps on the world walk the character there. */}
+              <div
+                style={styles.tapLayer}
+                aria-hidden="true"
+                onPointerDown={(event) => worldRef.current?.walkTo(event.clientX, event.clientY)}
+              />
+              <ExploreHud
+                hudRef={hudRef}
+                isPhone={isPhone}
+                near={near}
+                onVisit={visit}
+                onLeave={stopExploring}
+              />
+              {noteOpen ? (
+                <ExploreNote onAction={() => leaveFor(worldMap.secret.action)} onClose={() => setNoteOpen(false)} />
+              ) : null}
+            </>
+          ) : null}
         </>
       ) : null}
     </div>
@@ -163,7 +340,11 @@ const styles = {
     zIndex: 0,
     overflow: "hidden",
     pointerEvents: "none",
-    // Shown while the world loads, and instead of it if WebGL can't run.
+    // The sea's own color while the world loads, so it fades in over it.
+    backgroundColor: SEA_AVERAGE,
+  },
+  // Instead of the world, if WebGL can't run.
+  rootFallback: {
     backgroundColor: SEA_RAMP[0],
     backgroundImage: `radial-gradient(ellipse 120% 60% at 50% 100%, ${LAND_RAMP[2]}55, transparent 70%), linear-gradient(${SEA_RAMP[0]}, ${SEA_RAMP[1]} 55%, ${SEA_RAMP[2]})`,
   },
@@ -173,7 +354,22 @@ const styles = {
     left: 0,
     display: "block",
     imageRendering: "pixelated",
-    transition: "opacity 600ms ease",
+    transition: `opacity ${APPEAR_MS}ms ease`,
+  },
+  nameplate: {
+    position: "absolute",
+    inset: 0,
+    width: "100%",
+    height: "100%",
+    pointerEvents: "none",
+    overflow: "visible",
+  },
+  // Fades in with the canvas; the fade out sets its own, slower transition.
+  nameLetter: {
+    fill: "none",
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    transition: `opacity ${APPEAR_MS}ms ease`,
   },
   titleBlock: {
     position: "absolute",
@@ -200,11 +396,42 @@ const styles = {
     color: "var(--accent-warm)",
     textShadow: `0 3px 0 ${SEA_RAMP[0]}`,
     opacity: 0,
-    transition: "opacity 600ms ease",
+    visibility: "hidden",
+    transition: "opacity 600ms ease, visibility 600ms",
   },
   fade: {
     opacity: 0,
-    transition: "opacity 600ms ease",
+    visibility: "hidden",
+    transition: "opacity 600ms ease, visibility 600ms",
+  },
+  explore: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "10px",
+    marginTop: "18px",
+    padding: "9px 14px",
+    border: `1px solid ${RULE}`,
+    backgroundColor: shade(27, 4, 0.7),
+    color: "var(--accent-warm)",
+    fontFamily: "var(--mono)",
+    fontSize: "0.72rem",
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+    cursor: "pointer",
+    pointerEvents: "auto",
+  },
+  kbd: {
+    padding: "1px 5px",
+    border: `1px solid ${RULE}`,
+    fontFamily: "var(--mono)",
+    fontSize: "0.64rem",
+    color: tint(40, 88, 0.75),
+  },
+  tapLayer: {
+    position: "absolute",
+    inset: 0,
+    pointerEvents: "auto",
+    cursor: "pointer",
   },
   landmark: {
     position: "absolute",

@@ -1,4 +1,3 @@
-import { motion, useReducedMotion } from "motion/react";
 import { ChevronDown } from "lucide-react";
 import { tint } from "../palette";
 
@@ -34,8 +33,6 @@ export function HeroIntro({ isPhone }) {
  * search engines, and shows only if the world can't run (`showHeading`).
  */
 export default function Hero({ heroRef, isPhone, showHeading }) {
-  const prefersReducedMotion = useReducedMotion();
-
   return (
     <header id="top" ref={heroRef} style={{ ...styles.landing, ...(isPhone ? styles.landingPhone : {}) }}>
       {showHeading ? (
@@ -48,17 +45,10 @@ export default function Hero({ heroRef, isPhone, showHeading }) {
       )}
 
       {!isPhone ? (
-        <motion.a
-          href="#about"
-          style={styles.scrollCue}
-          aria-label="Scroll to about section"
-          animate={
-            prefersReducedMotion ? { opacity: 0.6 } : { y: [0, 7, 0], opacity: [0.45, 0.8, 0.45] }
-          }
-          transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-        >
+        // Bobs with a CSS animation (index.css), which runs off the main thread.
+        <a href="#about" className="scroll-cue" style={styles.scrollCue} aria-label="Scroll to about section">
           <ChevronDown size={22} aria-hidden="true" />
-        </motion.a>
+        </a>
       ) : null}
     </header>
   );
@@ -152,8 +142,9 @@ const styles = {
     position: "absolute",
     bottom: "18px",
     left: "50%",
-    x: "-50%",
+    transform: "translateX(-50%)",
     color: tint(45, 86, 0.7),
+    opacity: 0.6,
     textDecoration: "none",
     display: "flex",
     padding: "6px",

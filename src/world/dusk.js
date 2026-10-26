@@ -7,5 +7,11 @@ export const FOLIAGE_RAMP = ["#1c1022", "#4a1c2c", "#8a2e2e", "#c45a2a", "#e8933
 // Grass that hasn't turned yet: deep teal in shadow to a sunlit yellow-green,
 // well clear of MINT.
 export const GRASS_RAMP = ["#0e1324", "#14293a", "#1c4243", "#2f6149", "#5f8a4f", "#a7b866"];
+// Fallen leaves on the grass: the grass's shadows warming through olive to
+// ochre, lighter and greener than the trees above them.
+export const LITTER_RAMP = ["#0e1324", "#1e2834", "#3c4637", "#76783f", "#ba9c4a", "#e6c97e"];
+// The open sea's average color once dithered, measured off the screen.
+// What shows while the world loads, so it fades in over its own water.
+export const SEA_AVERAGE = "#1b224d";
 export const MINT = "#86ecb6";
 export const GOLD = "#f2c66e";

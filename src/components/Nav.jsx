@@ -9,6 +9,9 @@ const navSections = worldMap.stages
   .filter((stage) => stage.action.type === "section")
   .map((stage) => ({ id: stage.action.target, label: stage.label, level: stage.level }));
 
+// Explore is a game thing, so it gets the playable mint.
+const MINT_TEXT = "rgba(134, 236, 182, 0.9)";
+
 // A section counts as the current one once its top passes this far down
 // the screen.
 const CURRENT_LINE = 0.45;
@@ -16,10 +19,12 @@ const CURRENT_LINE = 0.45;
 /**
  * A small floating pill of section links, out of the way of the world: the
  * top-right corner on desktop, a compact row on phones. It appears once the
- * first screen is behind you and marks the section you're in.
+ * first screen is behind you and marks the section you're in. `onExplore`,
+ * when the world can run, adds an Explore link; `hidden` puts it away.
  */
-export default function Nav({ heroRef, isPhone }) {
-  const [visible, setVisible] = useState(false);
+export default function Nav({ heroRef, isPhone, hidden, onExplore }) {
+  const [pastHero, setPastHero] = useState(false);
+  const visible = pastHero && !hidden;
   const [current, setCurrent] = useState(null);
 
   // Measuring the header rather than the viewport keeps the reveal honest
@@ -27,7 +32,7 @@ export default function Nav({ heroRef, isPhone }) {
   useEffect(() => {
     const onScroll = () => {
       const heroHeight = heroRef.current?.offsetHeight ?? window.innerHeight;
-      setVisible(window.scrollY > heroHeight * 0.6);
+      setPastHero(window.scrollY > heroHeight * 0.6);
       const line = window.innerHeight * CURRENT_LINE;
       let id = null;
       for (const section of navSections) {
@@ -45,6 +50,8 @@ export default function Nav({ heroRef, isPhone }) {
       window.removeEventListener("resize", onScroll);
     };
   }, [heroRef]);
+
+  const compact = isPhone ? styles.itemPhone : {};
 
   return (
     <motion.nav
@@ -66,7 +73,7 @@ export default function Nav({ heroRef, isPhone }) {
             key={section.id}
             href={`#${section.id}`}
             className="nav-link"
-            style={{ ...styles.link, ...(isCurrent ? styles.linkCurrent : {}) }}
+            style={{ ...styles.link, ...compact, ...(isCurrent ? styles.linkCurrent : {}) }}
             aria-current={isCurrent ? "location" : undefined}
           >
             {!isPhone ? <span style={styles.level}>{section.level}</span> : null}
@@ -74,15 +81,20 @@ export default function Nav({ heroRef, isPhone }) {
           </a>
         );
       })}
+      {onExplore ? (
+        <button type="button" className="nav-link" style={{ ...styles.explore, ...compact }} onClick={onExplore}>
+          Explore
+        </button>
+      ) : null}
       <a
         href="/resume.pdf"
         target="_blank"
         rel="noopener noreferrer"
         className="pressable"
-        style={styles.resume}
+        style={{ ...styles.resume, ...compact }}
       >
         Resume
-        <ArrowUpRight size={12} aria-hidden="true" />
+        {!isPhone ? <ArrowUpRight size={12} aria-hidden="true" /> : null}
       </a>
     </motion.nav>
   );
@@ -114,6 +126,16 @@ const styles = {
     gap: "0",
     padding: "3px 3px 3px 4px",
     maxWidth: "calc(100% - 16px)",
+    // Fits from 360px wide; narrower than that, it scrolls sideways rather
+    // than cutting Resume off.
+    overflowX: "auto",
+    scrollbarWidth: "none",
+  },
+  // Tighter items on phones, so all six fit on one row.
+  itemPhone: {
+    padding: "6px 5px",
+    fontSize: "0.65rem",
+    letterSpacing: "0",
   },
   link: {
     display: "inline-flex",
@@ -125,6 +147,17 @@ const styles = {
     fontSize: "0.7rem",
     letterSpacing: "0.04em",
     whiteSpace: "nowrap",
+  },
+  explore: {
+    padding: "6px 8px",
+    border: "none",
+    background: "none",
+    color: MINT_TEXT,
+    fontFamily: "var(--mono)",
+    fontSize: "0.7rem",
+    letterSpacing: "0.04em",
+    whiteSpace: "nowrap",
+    cursor: "pointer",
   },
   linkCurrent: {
     color: "var(--accent-warm)",

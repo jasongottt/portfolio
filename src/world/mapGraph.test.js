@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   directionBetween,
   distanceField,
+  gridPath,
   hopCells,
+  nearestOpen,
   neighborInDirection,
   parseLand,
   pathCells,
@@ -124,5 +126,50 @@ describe("geometry", () => {
       [8, 4], [8, 3], [8, 2], [7, 2], [6, 2], [5, 2], [4, 2],
     ]);
     expect(hopCells(map, layout, "a", "b")).toEqual([[0, 2], [1, 2], [2, 2], [3, 2], [4, 2]]);
+  });
+});
+
+describe("gridPath", () => {
+  const land = parseLand(`
+    #####
+    ....#
+    ###.#
+    #...#
+    #####
+  `);
+
+  it("finds the shortest way through open cells", () => {
+    const path = gridPath(land.isLand, [0, 0], [0, 2]);
+    expect(path[0]).toEqual([0, 0]);
+    expect(path.at(-1)).toEqual([0, 2]);
+    // Around the right side and back along the bottom: 14 steps.
+    expect(path).toHaveLength(15);
+    for (const [col, row] of path) expect(land.isLand(col, row)).toBe(true);
+  });
+
+  it("is just the cell when you're already there", () => {
+    expect(gridPath(land.isLand, [2, 2], [2, 2])).toEqual([[2, 2]]);
+  });
+
+  it("is null when either end is closed", () => {
+    expect(gridPath(land.isLand, [0, 1], [0, 0])).toBeNull();
+    expect(gridPath(land.isLand, [0, 0], [3, 2])).toBeNull();
+  });
+});
+
+describe("nearestOpen", () => {
+  const land = parseLand(`
+    #....
+    .....
+    ....#
+  `);
+
+  it("returns the cell itself when it's open", () => {
+    expect(nearestOpen(land.isLand, land.cols, land.rows, [0, 0])).toEqual([0, 0]);
+  });
+
+  it("finds the closest open cell", () => {
+    expect(nearestOpen(land.isLand, land.cols, land.rows, [3, 2])).toEqual([4, 2]);
+    expect(nearestOpen(land.isLand, land.cols, land.rows, [1, 1])).toEqual([0, 0]);
   });
 });

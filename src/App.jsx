@@ -23,6 +23,8 @@ export default function App() {
   const [selectedImage, setSelectedImage] = useState(null);
   // "loading", "ready", or "failed" if the world can't run on this device.
   const [worldStatus, setWorldStatus] = useState("loading");
+  // Explore mode: the visitor walks the world, and the page steps aside.
+  const [exploring, setExploring] = useState(false);
   const { isPhone } = useViewport();
   const party = useKonamiParty();
 
@@ -50,10 +52,10 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectedProject, selectedImage]);
 
-  // Freeze the page behind an open overlay, compensating for the scrollbar
-  // so the layout doesn't jump sideways as it disappears.
+  // Freeze the page behind an open overlay or while exploring, compensating
+  // for the scrollbar so the layout doesn't jump sideways as it disappears.
   useEffect(() => {
-    if (!selectedProject && !selectedImage) return;
+    if (!selectedProject && !selectedImage && !exploring) return;
 
     const { body } = document;
     const previousOverflow = body.style.overflow;
@@ -67,7 +69,7 @@ export default function App() {
       body.style.overflow = previousOverflow;
       body.style.paddingRight = previousPadding;
     };
-  }, [selectedProject, selectedImage]);
+  }, [selectedProject, selectedImage, exploring]);
 
   return (
     <>
@@ -75,12 +77,22 @@ export default function App() {
         isPhone={isPhone}
         paused={Boolean(selectedProject || selectedImage)}
         party={party}
+        exploring={exploring}
+        onExploringChange={setExploring}
         onOpenProject={openProjectByTitle}
         onStatusChange={setWorldStatus}
       />
-      <Nav heroRef={heroRef} isPhone={isPhone} />
+      <Nav
+        heroRef={heroRef}
+        isPhone={isPhone}
+        hidden={exploring}
+        onExplore={worldStatus === "ready" ? () => setExploring(true) : undefined}
+      />
 
-      <div style={{ ...styles.page, ...(isPhone ? styles.pagePhone : {}) }}>
+      <div
+        style={{ ...styles.page, ...(isPhone ? styles.pagePhone : {}), ...(exploring ? styles.pageAway : {}) }}
+        inert={exploring}
+      >
         <Hero heroRef={heroRef} isPhone={isPhone} showHeading={worldStatus === "failed"} />
 
         <main style={{ ...styles.content, ...(isPhone ? {} : styles.column) }}>
@@ -127,6 +139,13 @@ const styles = {
     lineHeight: 1.6,
     color: tint(50, 94),
     pointerEvents: "none",
+    transition: "opacity 400ms ease, visibility 400ms",
+  },
+  // Out of the way while exploring. Still laid out, since the world reads
+  // the sections' positions.
+  pageAway: {
+    opacity: 0,
+    visibility: "hidden",
   },
   pagePhone: {
     width: "100%",

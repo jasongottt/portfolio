@@ -9,6 +9,9 @@
 // here instead of the center, which leaves room for text under the word.
 export const FRAME_Y = 0.42;
 
+// The world camera's vertical field of view, in degrees.
+export const FOV = 40;
+
 // Pixels of slack at the very top and bottom of the page, so a scroll
 // position a fraction of a pixel off still counts as the overview.
 const SLACK = 2;

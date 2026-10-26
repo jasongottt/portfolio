@@ -1,7 +1,9 @@
 import * as THREE from "three";
-import { GRASS, GRASS_ALPHA, foliageCode, landCode, seaCode } from "./dither";
+import { GRASS, GRASS_ALPHA, LITTER_ALPHA, foliageCode, landCode, seaCode } from "./dither";
 import { GOLD, MINT } from "./dusk";
-import { distanceField, hopCells, parseLand, pathCells, route } from "./mapGraph";
+import { distanceField, gridPath, hopCells, nearestOpen, parseLand, pathCells, route } from "./mapGraph";
+import { landBounds } from "./nameplate";
+import { LANDMARK_SPOTS, landmarkOffset, secretCell, walkableGrid } from "./walkable";
 
 /**
  * The world for one layout of worldMap.js: islands raised from the land
@@ -17,6 +19,9 @@ import { distanceField, hopCells, parseLand, pathCells, route } from "./mapGraph
  */
 
 const WATER_DEPTH = -1.2;
+// The sea floor one and two cells out from the coast, shelving gently so the
+// shoreline is a smooth line rather than a cliff.
+const SHELF_DEPTHS = [-0.45, -0.95];
 const PLANK_HEIGHT = 0.36;
 // Ridge terraces along the middle of each stroke: how many, and how tall.
 const TERRACES = 3;
@@ -25,10 +30,8 @@ const TERRACE_HEIGHT = 0.7;
 const TREE_DENSITY = 0.18;
 const ROCK_DENSITY = 0.07;
 const PUMPKIN_DENSITY = 0.02;
-// Share of the fields still green; the rest is fallen leaves.
-const GREEN_FIELDS = 0.55;
 // Share of grass tufts still green.
-const GREEN_TUFTS = 0.75;
+const GREEN_TUFTS = 0.9;
 // Share of trees that are evergreens; the rest are in autumn colors.
 const EVERGREENS = 0.3;
 // Crimson, orange and gold, as foliage codes.
@@ -43,13 +46,16 @@ const PUMPKIN = "#e8822e";
 const PUMPKIN_STEM = "#6b8f3a";
 // Shallows fade out this many cells from the coast.
 const SHALLOWS = 2.5;
+// The sea sheet: this many segments a side, about SEA_DETAIL units apart
+// around the islands and stretching wider toward the horizon, where the fog
+// hides the facets.
+const SEA_SEGMENTS = 96;
+const SEA_DETAIL = 2;
 // A lantern on every this-many bridge planks.
 const LANTERN_EVERY = 3;
-// Landmarks stand beside their stage, back and to the right, so the
-// character stands next to them rather than in front of them. Where that
-// spot is water, they try the left, then straight behind.
-const LANDMARK_SPOTS = [[2, -1], [-2, -1], [0, -1.6]];
 const LANDMARK_SCALE = 1.6;
+// The secret's bottle: pale glass, an accent drawn in its real color.
+const BOTTLE_GLASS = "#cfe3ff";
 
 function hash(x, y, seed = 0) {
   let h = (Math.imul(x, 2246822519) + Math.imul(y, 3266489917) + Math.imul(seed, 374761393)) | 0;
@@ -111,8 +117,9 @@ function landmarkParts(icon, { body, mint, gold }) {
 /**
  * Builds the world for `map.layouts[layoutName]`. `stops` are the stage ids
  * the character walks between, in order. Returns the scene plus what the
- * frame loop needs: the land's bounds, a walkable route, each landmark's
- * anchor (its middle) and foot points, and tick() to move the sea and the falling leaves.
+ * frame loop needs: the land's bounds, the scroll walk, each landmark's
+ * anchor (its middle) and foot points, what Explore mode needs to walk
+ * anywhere, and tick() to move the sea, the leaves and the secret's glint.
  */
 export function buildWorld(map, layoutName, stops) {
   const layout = map.layouts[layoutName];
@@ -139,11 +146,13 @@ export function buildWorld(map, layoutName, stops) {
   mark(clear, pathCellsAll, 1);
   mark(clear, landmarkCells, 1);
   mark(clear, Object.values(layout.stages), 1);
+  const secret = secretCell(map, layout);
+  mark(clear, [secret], 1);
 
   // Islands rise from the beach to a shoulder a couple of cells in, then,
   // along the middle of each stroke, to terraced ridges.
   const cellHeight = (col, row) => {
-    if (!land.isLand(col, row)) return WATER_DEPTH;
+    if (!land.isLand(col, row)) return SHELF_DEPTHS[offshore(col, row) - 1] ?? WATER_DEPTH;
     const inland = coast(col, row);
     const base = 0.5 + 1.2 * Math.min(1, (inland - 1) / 2);
     if (inland < 3 || nearPath.has(cellKey(col, row))) return base;
@@ -183,10 +192,57 @@ export function buildWorld(map, layoutName, stops) {
   sun.position.set(-25, 40, 35);
   scene.add(sun, new THREE.HemisphereLight(0xffffff, 0x333333, 0.7));
 
+  // Trees: dark green evergreens among red, orange and gold round trees. Rocks
+  // on the beaches and in the shallows. Tufts and pumpkins in the fields.
+  const pines = [];
+  const maples = [];
+  const rocks = [];
+  const tufts = [];
+  const greenTufts = [];
+  const pumpkins = [];
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      if (clear.has(cellKey(col, row))) continue;
+      const roll = hash(col, row, 7);
+      const onLand = land.isLand(col, row);
+      const spot = {
+        x: col - cols / 2 + 0.5 + (hash(col, row, 8) - 0.5) * 0.6,
+        z: row - rows / 2 + 0.5 + (hash(col, row, 9) - 0.5) * 0.6,
+        size: 0.75 + hash(col, row, 10) * 0.5,
+        turn: hash(col, row, 11) * Math.PI * 2,
+      };
+      if (onLand && coast(col, row) >= 2) {
+        for (let i = 0; i < TUFTS; i++) {
+          if (hash(col, row, 20 + i) < 0.5) continue;
+          (hash(col, row, 65 + i) < GREEN_TUFTS ? greenTufts : tufts).push({
+            x: col - cols / 2 + hash(col, row, 30 + i),
+            z: row - rows / 2 + hash(col, row, 40 + i),
+            size: 0.8 + hash(col, row, 50 + i) * 0.6,
+            turn: hash(col, row, 60 + i) * Math.PI,
+          });
+        }
+        if (roll >= TREE_DENSITY && roll < TREE_DENSITY + PUMPKIN_DENSITY) pumpkins.push(spot);
+      }
+      if (onLand && coast(col, row) >= 2 && roll < TREE_DENSITY) {
+        if (hash(col, row, 12) < EVERGREENS) pines.push(spot);
+        else maples.push({ ...spot, leaves: LEAF_CODES[Math.floor(hash(col, row, 13) * LEAF_CODES.length)] });
+      } else if ((onLand ? coast(col, row) === 1 : offshore(col, row) <= 2) && roll < ROCK_DENSITY) {
+        rocks.push(spot);
+      }
+    }
+  }
+  // Fallen leaves lie under the round trees: those cells and the ones around.
+  const leafy = new Set();
+  for (const { x, z } of maples) {
+    const col = Math.round(x + cols / 2 - 0.5);
+    const row = Math.round(z + rows / 2 - 0.5);
+    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) if (dc * dr === 0) leafy.add(cellKey(col + dc, row + dr));
+  }
+
   // Terrain: a faceted sheet, two triangles' worth of detail per cell.
   const terrain = keep(new THREE.PlaneGeometry(cols, rows, cols * 2, rows * 2).rotateX(-Math.PI / 2).toNonIndexed());
   const positions = terrain.attributes.position;
-  // RGBA: alpha marks green grass (dither.js).
+  // RGBA: alpha marks green grass and fallen leaves (dither.js).
   const colors = new Float32Array(positions.count * 4).fill(1);
   for (let i = 0; i < positions.count; i++) {
     const x = positions.getX(i);
@@ -198,18 +254,23 @@ export function buildWorld(map, layoutName, stops) {
   terrain.computeVertexNormals();
   // One color per face, so no triangle blends two codes (see dither.js).
   for (let i = 0; i < positions.count; i += 3) {
-    const y = (positions.getY(i) + positions.getY(i + 1) + positions.getY(i + 2)) / 3;
+    const corners = [positions.getY(i), positions.getY(i + 1), positions.getY(i + 2)];
+    const y = (corners[0] + corners[1] + corners[2]) / 3;
     const x = (positions.getX(i) + positions.getX(i + 1) + positions.getX(i + 2)) / 3;
     const z = (positions.getZ(i) + positions.getZ(i + 1) + positions.getZ(i + 2)) / 3;
-    // Wet sand, bright beach, pale stone on the highest ridges, and
-    // everywhere in between, green grass patched with fallen leaves. The
-    // terrace slopes take the field's color too (the light shades them):
-    // at this size, rock-colored slopes read as stray dark specks.
+    // Wet sand under the water, bright beach, pale stone on the highest
+    // ridges, and everywhere in between, green grass, with fallen leaves
+    // under the round trees. A face counts as beach if any corner is above
+    // the water, so the shoreline is one band rather than a zigzag of
+    // sand and beach triangles. Terrace slopes take the field's color too
+    // (the light shades them): at this size, rock-colored slopes read as
+    // stray dark specks.
     const field = !(y < 0.75 || y > 2.8);
-    const green = field && noise(x + cols, z + rows, 4, 21) < GREEN_FIELDS;
+    const cell = cellKey(Math.round(x + cols / 2 - 0.5), Math.round(z + rows / 2 - 0.5));
+    const green = field && !leafy.has(cell);
     const patchy = (noise(x + cols, z + rows, 3, 20) - 0.5) * 0.4;
     const [channel, brightness] =
-      y < 0.2 ? [0, 0.25]
+      Math.max(...corners) < 0.15 ? [0, 0.25]
       : y < 0.75 ? [0, 0.92]
       : y > 2.8 ? [0, 0.86]
       : green ? [1, 0.85 + patchy]
@@ -218,7 +279,7 @@ export function buildWorld(map, layoutName, stops) {
       const at = (i + k) * 4;
       colors[at] = colors[at + 1] = colors[at + 2] = 0;
       colors[at + channel] = brightness;
-      colors[at + 3] = green ? GRASS_ALPHA : 1;
+      colors[at + 3] = green ? GRASS_ALPHA : field ? LITTER_ALPHA : 1;
     }
   }
   terrain.setAttribute("color", new THREE.BufferAttribute(colors, 4));
@@ -264,7 +325,19 @@ export function buildWorld(map, layoutName, stops) {
       diffuseColor.b += texture2D(uShallows, vShallowUv).r * 0.32 * inGrid.x * inGrid.y;`
     );
   };
-  const seaGeometry = keep(new THREE.PlaneGeometry(seaSize, seaSize, seaSize / 2, seaSize / 2).rotateX(-Math.PI / 2));
+  const seaGeometry = keep(new THREE.PlaneGeometry(seaSize, seaSize, SEA_SEGMENTS, SEA_SEGMENTS).rotateX(-Math.PI / 2));
+  {
+    // Spread the segments: x = half * (a*u + (1 - a)*u^3) for u in [-1, 1],
+    // spaced SEA_DETAIL apart at the middle and wider toward the edges.
+    const half = seaSize / 2;
+    const a = Math.min(1, (SEA_DETAIL * SEA_SEGMENTS) / seaSize);
+    const spread = (v) => {
+      const u = v / half;
+      return half * (a * u + (1 - a) * u * u * u);
+    };
+    const sea = seaGeometry.attributes.position;
+    for (let i = 0; i < sea.count; i++) sea.setXYZ(i, spread(sea.getX(i)), sea.getY(i), spread(sea.getZ(i)));
+  }
   scene.add(new THREE.Mesh(seaGeometry, seaMaterial));
 
   // Sky: a dome that glows warm at the horizon and darkens overhead. It
@@ -296,8 +369,7 @@ export function buildWorld(map, layoutName, stops) {
     group.add(...landmarkParts(stage.icon, materials));
     group.traverse((child) => child.geometry && keep(child.geometry));
     const [col, row] = layout.stages[stage.id];
-    const [dx, dz] =
-      LANDMARK_SPOTS.find(([sx, sz]) => land.isLand(Math.round(col + sx), Math.round(row + sz))) ?? LANDMARK_SPOTS.at(-1);
+    const [dx, dz] = landmarkOffset(land, [col, row]);
     const [x, , z] = toWorld([col + dx, row + dz]);
     const y = Math.max(0, heightAt(x, z));
     group.position.set(x, y, z);
@@ -341,45 +413,6 @@ export function buildWorld(map, layoutName, stops) {
     return matrix.makeTranslation(x, heightAt(x, z) + 0.05, z);
   });
 
-  // Trees: dark green evergreens among red, orange and gold round trees. Rocks
-  // on the beaches and in the shallows. Tufts and pumpkins in the fields.
-  const pines = [];
-  const maples = [];
-  const rocks = [];
-  const tufts = [];
-  const greenTufts = [];
-  const pumpkins = [];
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      if (clear.has(cellKey(col, row))) continue;
-      const roll = hash(col, row, 7);
-      const onLand = land.isLand(col, row);
-      const spot = {
-        x: col - cols / 2 + 0.5 + (hash(col, row, 8) - 0.5) * 0.6,
-        z: row - rows / 2 + 0.5 + (hash(col, row, 9) - 0.5) * 0.6,
-        size: 0.75 + hash(col, row, 10) * 0.5,
-        turn: hash(col, row, 11) * Math.PI * 2,
-      };
-      if (onLand && coast(col, row) >= 2) {
-        for (let i = 0; i < TUFTS; i++) {
-          if (hash(col, row, 20 + i) < 0.5) continue;
-          (hash(col, row, 65 + i) < GREEN_TUFTS ? greenTufts : tufts).push({
-            x: col - cols / 2 + hash(col, row, 30 + i),
-            z: row - rows / 2 + hash(col, row, 40 + i),
-            size: 0.8 + hash(col, row, 50 + i) * 0.6,
-            turn: hash(col, row, 60 + i) * Math.PI,
-          });
-        }
-        if (roll >= TREE_DENSITY && roll < TREE_DENSITY + PUMPKIN_DENSITY) pumpkins.push(spot);
-      }
-      if (onLand && coast(col, row) >= 2 && roll < TREE_DENSITY) {
-        if (hash(col, row, 12) < EVERGREENS) pines.push(spot);
-        else maples.push({ ...spot, leaves: LEAF_CODES[Math.floor(hash(col, row, 13) * LEAF_CODES.length)] });
-      } else if ((onLand ? coast(col, row) === 1 : offshore(col, row) <= 2) && roll < ROCK_DENSITY) {
-        rocks.push(spot);
-      }
-    }
-  }
   const scaled = new THREE.Vector3();
   const turned = new THREE.Quaternion();
   const up = new THREE.Vector3(0, 1, 0);
@@ -428,7 +461,9 @@ export function buildWorld(map, layoutName, stops) {
   instanced(new THREE.BoxGeometry(0.05, 0.12, 0.05), lambert(PUMPKIN_STEM), pumpkins, placeScattered(0.32));
 
   // Falling leaves, drifting down over the whole map. Unlit, so their color
-  // is the foliage code itself.
+  // is the foliage code itself. Each leaf's start, phase and speed ride along
+  // as an instance attribute and the vertex shader moves it, so the leaves
+  // cost the CPU nothing per frame.
   const leaves = Array.from({ length: Math.round((cols * rows) / CELLS_PER_LEAF) }, (_, i) => ({
     x: (hash(i, 1, 90) - 0.5) * cols,
     z: (hash(i, 2, 90) - 0.5) * rows,
@@ -436,28 +471,35 @@ export function buildWorld(map, layoutName, stops) {
     speed: 0.5 + hash(i, 4, 90) * 0.6,
     leaves: LEAF_CODES[Math.floor(hash(i, 5, 90) * LEAF_CODES.length)],
   }));
-  const leafMesh = instanced(
-    new THREE.PlaneGeometry(0.22, 0.15),
-    keep(new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })),
-    leaves,
-    (matrix) => matrix.identity(),
-    ({ leaves: code }) => foliageCode(code * 0.75)
+  const leafGeometry = new THREE.PlaneGeometry(0.22, 0.15);
+  leafGeometry.setAttribute(
+    "aLeaf",
+    new THREE.InstancedBufferAttribute(new Float32Array(leaves.flatMap(({ x, z, phase, speed }) => [x, z, phase, speed])), 4)
   );
-  const leafMatrix = new THREE.Matrix4();
-  const leafPosition = new THREE.Vector3();
-  const leafTurn = new THREE.Quaternion();
-  const leafSpin = new THREE.Euler();
-  const unit = new THREE.Vector3(1, 1, 1);
-  const blowLeaves = (seconds) => {
-    leaves.forEach((leaf, i) => {
-      const fallen = (seconds * leaf.speed + leaf.phase * FALL_HEIGHT) % FALL_HEIGHT;
-      const sway = seconds * 1.3 + leaf.phase * Math.PI * 2;
-      leafPosition.set(leaf.x + Math.sin(sway) * 0.7, FALL_HEIGHT - fallen, leaf.z + Math.cos(sway * 0.7) * 0.4);
-      leafTurn.setFromEuler(leafSpin.set(sway, sway * 0.6, sway * 0.3));
-      leafMesh.setMatrixAt(i, leafMatrix.compose(leafPosition, leafTurn, unit));
-    });
-    leafMesh.instanceMatrix.needsUpdate = true;
+  const leafMaterial = keep(new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }));
+  leafMaterial.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = time;
+    shader.vertexShader = `uniform float uTime;\nattribute vec4 aLeaf;\n${shader.vertexShader}`.replace(
+      "#include <begin_vertex>",
+      `#include <begin_vertex>
+      float fall = ${FALL_HEIGHT.toFixed(1)};
+      float fallen = mod(uTime * aLeaf.w + aLeaf.z * fall, fall);
+      float sway = uTime * 1.3 + aLeaf.z * 6.2831853;
+      float c1 = cos(sway), s1 = sin(sway);
+      float c2 = cos(sway * 0.6), s2 = sin(sway * 0.6);
+      float c3 = cos(sway * 0.3), s3 = sin(sway * 0.3);
+      mat3 spin = mat3(1.0, 0.0, 0.0, 0.0, c1, s1, 0.0, -s1, c1)
+        * mat3(c2, 0.0, -s2, 0.0, 1.0, 0.0, s2, 0.0, c2)
+        * mat3(c3, s3, 0.0, -s3, c3, 0.0, 0.0, 0.0, 1.0);
+      transformed = spin * transformed
+        + vec3(aLeaf.x + sin(sway) * 0.7, fall - fallen, aLeaf.y + cos(sway * 0.7) * 0.4);`
+    );
   };
+  const leafMesh = instanced(leafGeometry, leafMaterial, leaves, (matrix) => matrix.identity(), ({ leaves: code }) =>
+    foliageCode(code * 0.75)
+  );
+  // Its bounds are a single leaf at the origin; the shader spreads them out.
+  leafMesh.frustumCulled = false;
   instanced(
     new THREE.DodecahedronGeometry(0.3, 0),
     keep(new THREE.MeshLambertMaterial({ color: landCode(0.55), flatShading: true })),
@@ -482,6 +524,34 @@ export function buildWorld(map, layoutName, stops) {
     matrix.makeTranslation(x, PLANK_HEIGHT + 1, z)
   );
 
+  // The secret: a bottle washed up on the far side of its island, lying on
+  // its side, with a gold glint bobbing over it.
+  const [secretX, , secretZ] = toWorld(secret);
+  const secretY = Math.max(0, heightAt(secretX, secretZ));
+  const bottle = new THREE.Group();
+  const glass = keep(new THREE.MeshLambertMaterial({ color: BOTTLE_GLASS, emissive: 0x405070, flatShading: true }));
+  const body = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.12, 0.12, 0.38, 6)), glass);
+  const neck = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.05, 0.08, 0.16, 6).translate(0, 0.26, 0)), glass);
+  const cork = new THREE.Mesh(keep(new THREE.BoxGeometry(0.07, 0.07, 0.07).translate(0, 0.37, 0)), materials.body);
+  bottle.add(body, neck, cork);
+  bottle.rotation.set(0, 0.6, Math.PI / 2.3);
+  bottle.position.set(secretX, secretY + 0.12, secretZ);
+  const glint = new THREE.Mesh(keep(new THREE.BoxGeometry(0.12, 0.12, 0.12)), materials.gold);
+  glint.position.set(secretX, secretY + 0.8, secretZ);
+  scene.add(bottle, glint);
+
+  // Explore mode: which cells can be walked, and the spots that can be
+  // visited (each stage, and the secret).
+  const grid = walkableGrid(map, layout);
+  const cellOf = (x, z) => [Math.round(x + cols / 2 - 0.5), Math.round(z + rows / 2 - 0.5)];
+  const spots = [
+    ...map.stages.map((stage) => {
+      const [x, , z] = toWorld(layout.stages[stage.id]);
+      return { id: stage.id, x, z };
+    }),
+    { id: "secret", x: secretX, z: secretZ },
+  ];
+
   // The walk: every cell from the first stop to the last, and where each
   // stop falls along it.
   const walk = [layout.stages[stops[0]]];
@@ -493,14 +563,7 @@ export function buildWorld(map, layoutName, stops) {
   }
   const walkPoints = walk.map(groundAt);
 
-  const landCells = [];
-  for (let row = 0; row < rows; row++) for (let col = 0; col < cols; col++) if (land.isLand(col, row)) landCells.push(toWorld([col, row]));
-  const bounds = {
-    minX: Math.min(...landCells.map((p) => p[0])),
-    maxX: Math.max(...landCells.map((p) => p[0])),
-    minZ: Math.min(...landCells.map((p) => p[2])),
-    maxZ: Math.max(...landCells.map((p) => p[2])),
-  };
+  const bounds = landBounds(layout);
 
   return {
     scene,
@@ -518,12 +581,31 @@ export function buildWorld(map, layoutName, stops) {
       const b = walkPoints[i + 1] ?? a;
       return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
     },
+    /** Where feet go at (x, z): the ground, or the planks over water. */
+    groundAt: (x, z) => [x, Math.max(PLANK_HEIGHT + 0.08, heightAt(x, z)), z],
+    /** Whether Explore mode can stand at (x, z). */
+    open: (x, z) => grid.isOpen(...cellOf(x, z)),
+    /**
+     * Points to walk through, cell by cell, from (x, z) to the walkable cell
+     * nearest `to`. Empty if there's no way there.
+     */
+    routeTo([x, z], to) {
+      const goal = nearestOpen(grid.isOpen, cols, rows, cellOf(...to));
+      const cells = goal && gridPath(grid.isOpen, cellOf(x, z), goal);
+      return (cells ?? []).slice(1).map((cell) => {
+        const [cx, , cz] = toWorld(cell);
+        return [cx, cz];
+      });
+    },
+    /** What can be visited in Explore mode: { id, x, z }, ids are stage ids or "secret". */
+    spots,
     /** Moves things along to `seconds`. `still` (reduced motion) hides the leaves. */
     tick(seconds, camera, still) {
       time.value = seconds;
       sky.position.copy(camera.position);
       leafMesh.visible = !still;
-      if (!still) blowLeaves(seconds);
+      glint.position.y = secretY + 0.8 + Math.sin(seconds * 3) * 0.12;
+      glint.rotation.y = seconds * 2;
     },
     dispose() {
       for (const thing of disposables) thing.dispose();

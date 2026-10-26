@@ -30,10 +30,10 @@ export const GLYPHS = {
   N: { strokes: [[[2, 25], [2, 1], [14, 25], [14, 1]]] },
 };
 
-const RADIUS = 2.5;
+export const RADIUS = 2.5;
 const WOBBLE = 1.3;
 // The full stop is a small round islet.
-const DOT_RADIUS = 0.6;
+export const DOT_RADIUS = 0.6;
 
 /**
  * Where the letters go, per screen shape. `letters` are [glyph, col, row] for

@@ -153,7 +153,7 @@ export const projects = [
     tech: "React.js, three.js, CSS, Vite",
     year: "2026",
     details:
-      "The site you're on. It's built with React and Vite, with plain three.js drawing the world behind the page.\n\nThe islands spell my name. The world renders at a third of the screen's resolution and goes through a dither shader I wrote, which paints every pixel from one fixed dusk palette. As you scroll, my character walks from landmark to landmark, one per section, and the camera follows like a game camera. The landmarks are clickable too, and the games here run in your browser as Godot web exports. There's also at least one secret.",
+      "The site you're on. It's built with React and Vite, with plain three.js drawing the world behind the page.\n\nThe islands spell my name. The world renders at a third of the screen's resolution and goes through a dither shader I wrote, which paints every pixel from one fixed dusk palette. As you scroll, my character walks from landmark to landmark, one per section, and the camera follows like a game camera. The landmarks are clickable, you can press E to walk around the islands yourself, and the games here run in your browser as Godot web exports. There's also at least one secret.",
     repoUrl: "https://github.com/jasongottt/portfolio",
     screenshots: [
       { label: "Projects section", path: "/projects/this1.png" },

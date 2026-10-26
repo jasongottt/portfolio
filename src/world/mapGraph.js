@@ -135,3 +135,45 @@ export function hopCells(map, layout, fromId, toId) {
   const cells = pathCells(layout, path);
   return path[0] === fromId ? cells : cells.reverse();
 }
+
+const keyOf = ([col, row]) => `${col},${row}`;
+
+/**
+ * The shortest four-way route of open cells from `from` to `to`, both
+ * included, or null if there isn't one.
+ */
+export function gridPath(isOpen, from, to) {
+  if (!isOpen(...from) || !isOpen(...to)) return null;
+  const cameFrom = new Map([[keyOf(from), null]]);
+  const queue = [from];
+  for (let i = 0; i < queue.length && !cameFrom.has(keyOf(to)); i++) {
+    const [col, row] = queue[i];
+    for (const [dc, dr] of Object.values(STEPS)) {
+      const next = [col + dc, row + dr];
+      if (cameFrom.has(keyOf(next)) || !isOpen(...next)) continue;
+      cameFrom.set(keyOf(next), [col, row]);
+      queue.push(next);
+    }
+  }
+  if (!cameFrom.has(keyOf(to))) return null;
+  const cells = [];
+  for (let cell = to; cell; cell = cameFrom.get(keyOf(cell))) cells.unshift(cell);
+  return cells;
+}
+
+/** The open cell nearest `cell` (it, if it's open), or null if none is. */
+export function nearestOpen(isOpen, cols, rows, [col, row]) {
+  let best = null;
+  let bestDistance = Infinity;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (!isOpen(c, r)) continue;
+      const distance = (c - col) ** 2 + (r - row) ** 2;
+      if (distance < bestDistance) {
+        best = [c, r];
+        bestDistance = distance;
+      }
+    }
+  }
+  return best;
+}

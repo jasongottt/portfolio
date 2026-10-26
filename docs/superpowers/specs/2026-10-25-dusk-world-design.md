@@ -21,11 +21,12 @@ Live previews from the brainstorm (not committed, under `.superpowers/brainstorm
 
 ### Top of the page
 
+- **The opening:** when the page loads at the top, **JASON.** appears in peach exactly over the island letters. It's drawn from the same strokes the islands are rasterized from (`nameIslands.js`), as SVG paths with round caps, as thick as the islands, projected with the same camera math as the world but without three.js (`src/world/nameplate.js`), so it covers each island but for the coastline's wobble, on any screen and in both layouts. While the world loads, the page is a flat color matching the dithered sea (`SEA_AVERAGE`); the world reports its first drawn frame, and the water and the name fade in together then (350 ms), so the name never shows without the islands under it. It holds just under a second, then fades letter by letter, J first, to reveal the islands. Scrolling first, or loading partway down the page, skips it; it never shows if WebGL fails. The landmark circles wait until it's gone.
 - **The view:** the whole world, seen from high up and nearly straight down, so the five letter islands read as **JASON.** in the dusk sea. On landscape screens the camera stands 35% further back than a tight fit, so the word sits in open sea at about 70% of the width; the stacked phone layout fits the width. The sea moves gently. The character stands at home on the J.
 - **GOTTESMAN:** set in widely spaced bold capitals (Geist Mono, peach), centered under the island word. It is visible **only once the camera has settled on the full zoomed-out view**. It fades out the moment the camera starts moving, and fades back in only after the camera settles again at the end.
 - **The intro and status line:** the current one-sentence intro and a "Next" line (the ReliaQuest internship) sit under GOTTESMAN, centered, with the same show/hide rule.
 - **The heading:** the page's `<h1>` stays "Jason Gottesman" as real text for screen readers and search engines. It is visually hidden, since the islands and GOTTESMAN show it.
-- **Navigation:** once you scroll past the top, a small pill of section links appears: in the top-right corner on desktop, centered across the top on phones. It has no name, shows each section's level on desktop, and marks the section you're in in peach.
+- **Navigation:** once you scroll past the top, a small pill of section links appears: in the top-right corner on desktop, centered across the top on phones. It has no name, shows each section's level on desktop, and marks the section you're in in peach. On phones its items are tighter and Resume drops its arrow, so the whole row fits from 360px wide; narrower than that, the pill scrolls sideways.
 
 ### Scrolling
 
@@ -77,6 +78,7 @@ The world is drawn in **code colors**, not real ones:
 - land, cliffs, beaches and landmarks: brightness in the red channel
 - autumn leaves: brightness in the green channel
 - green grass: brightness in the green channel, drawn at half alpha (everything else is fully opaque, so alpha marks grass however fog shifts its color)
+- fallen leaves on the ground under the round trees: brightness in the green channel, drawn at quarter alpha
 - sea and sky: brightness in the blue channel
 - accents (mint, gold, pumpkins, the character's skin and shirt): their real color, picked out by red and green both being lit. Lights are white and fog only adds blue, so a code color never lights two of those channels, and each terrain face takes one code so no triangle blends two.
 
@@ -85,6 +87,7 @@ The dither pass then paints each surface from its own ramp, dark to light:
 - **Land:** `#140c26 #33204a #6e3a5e #b8606a #ee9d7a #ffd9a8`
 - **Foliage (autumn):** `#1c1022 #4a1c2c #8a2e2e #c45a2a #e8933a #f5cf7a`, plum-brown in shadow through crimson, rust and amber to straw
 - **Grass:** `#0e1324 #14293a #1c4243 #2f6149 #5f8a4f #a7b866`, deep teal in shadow to a sunlit yellow-green, kept clear of the mint that marks games
+- **Fallen leaves:** `#0e1324 #1e2834 #3c4637 #76783f #ba9c4a #e6c97e`, the grass's shadows warming through olive to ochre: lighter and greener than the trees, so the ground under them reads as leaf-strewn grass rather than orange patches
 - **Sea and sky:** `#07061a #100f30 #1c2452 #2f4a7c #5d84b4 #a9c4e0`
 - **Accents:** mint `#86ecb6`, gold `#f2c66e`
 
@@ -130,7 +133,7 @@ Plain three.js with a hand-written post pass. No React Three Fiber, no postproce
 | --- | --- |
 | `src/world/WorldBackground.jsx` | The fixed full-page layer behind everything: the canvas, the landmark buttons and hover labels, and GOTTESMAN and the intro. Loads `runWorld.js` after first paint and reports `"ready"` or `"failed"` through `onStatusChange`. Takes `onOpenProject`, like the map does today, and `paused`, which stops rendering while a project popup or image is open so the world isn't drawing behind it. |
 | `src/world/runWorld.js` | The renderer and the frame loop, loaded lazily with three.js. Reads scroll, moves the character and camera, places the landmark buttons and the text by writing their styles directly, and renders. |
-| `src/world/scene.js` | Builds the scene from map data: terrain mesh (low-poly, faceted, height from distance to the coast, with terraced ridges along the middle of each stroke away from the paths, their slopes colored like the fields around them and pale stone on top), sea plane (waves animated in its vertex shader, lighter shallows around every island from a distance texture), landmark meshes, stepping stones and bridge planks with gold lanterns, fields on the flat tops, about half green grass and half drifts of fallen leaves (beaches stay sand, the highest ridges pale stone; terrace slopes take the field's color, since rock-colored slopes read as stray dark specks at this size), dark green evergreens among round trees in crimson, orange and gold, tufts, mostly green, pumpkins in the fields and two by the house, leaves falling over the whole map (hidden with reduced motion), rocks on the beaches and in the shallows, sky dome, lights, fog. Everything scattered is hashed from cell positions, so it's the same on every load. No React. |
+| `src/world/scene.js` | Builds the scene from map data: terrain mesh (low-poly, faceted, height from distance to the coast, the sea floor shelving gently for two cells offshore so the shoreline is smooth, the beach one band wherever a face reaches above the water, with terraced ridges along the middle of each stroke away from the paths, their slopes colored like the fields around them and pale stone on top), sea plane (waves animated in its vertex shader, lighter shallows around every island from a distance texture), landmark meshes, stepping stones and bridge planks with gold lanterns, fields on the flat tops (green grass, with fallen leaves only under the round trees; beaches stay sand, the highest ridges pale stone; terrace slopes take the field's color, since rock-colored slopes read as stray dark specks at this size), dark green evergreens among round trees in crimson, orange and gold, tufts, mostly green, pumpkins in the fields and two by the house, leaves falling over the whole map (hidden with reduced motion), rocks on the beaches and in the shallows, sky dome, lights, fog. Everything scattered is hashed from cell positions, so it's the same on every load. No React. |
 | `src/world/dither.js` | The low-res render target and the Dusk dither pass, as described in Look. |
 | `src/world/dusk.js` | The Dusk ramps and accents, kept apart from three.js so the page can use them before the world loads. |
 | `src/world/character.js` | The billboard sprite and its walk frames, built from `HERO` in `pixelArt.js`, plus a small shadow. |
@@ -187,9 +190,12 @@ Rendering stops while the tab is hidden.
 ## Performance
 
 - **One WebGL canvas,** rendered at a third of the screen's resolution.
+- **Idle frame rate:** when nothing is moving (no scrolling, the camera and character settled, nothing being walked in Explore mode), the world redraws at 30 fps instead of every frame. The sea and leaves keep drifting.
+- **Cheap per-frame work:** the falling leaves animate in their vertex shader from per-instance attributes, so they cost the CPU nothing; the sea sheet is 96 segments a side, about 2 units apart around the islands and stretching wider toward the fogged horizon (about a sixth of the vertices of an even grid); the scroll arrow and the circles' pulse are CSS animations of transform and opacity only, which run on the compositor.
+- **Measured** on a CPU slowed 4x (headless Chrome, software WebGL, so pessimistic): main-thread time at idle went from 85% to 53% on desktop and 61% to 49% on phones; while scrolling, the slowest frames went from 33 ms to 17 ms.
 - **Device pixel ratio:** capped at 1, as the current background already does.
 - **Lighter load:** dropping React Three Fiber and the postprocessing library makes the 3D chunk 490 KB (126 KB gzipped), down from about 890 KB.
-- **Lazy loading:** the world code loads after first paint, behind the static dusk gradient, as the current background does.
+- **Lazy loading:** the world code loads after first paint, behind a flat sea-colored background it then fades in over.
 
 ## Testing
 
@@ -214,14 +220,16 @@ Rendering stops while the tab is hidden.
 
 ## Phase 2: Explore mode
 
-Built after phase 1 ships, reusing its world, character, routes and camera.
+Built on phase 1's world, character and camera.
 
-- **Entry:** an "Explore" button on the overview, or pressing E. Page scrolling locks and the visitor controls the character. Escape exits back to where they were.
+- **Entry:** an "Explore the islands" button under the intro, an Explore link in the nav, or pressing E. The page panels and nav fade away (still laid out, so the world can read the sections), scrolling locks, and the camera drops behind the character from wherever the scroll had it. Focus moves to the Explore bar.
 - **Moving:**
-  - On desktop, arrow keys or WASD, with the land grid and bridges as collision.
-  - On phones, tap a spot and the character walks there along the shortest route (`route` in `mapGraph.js`).
-- **Landmarks:** standing at one shows a prompt like "Enter ↵ to visit Experience." Taking it exits Explore and does what clicking the landmark does.
-- **Secrets:** a few things only explorers find, for example a note on the "." islet, or a hidden cove. The Konami code could also open a path to a secret stage.
+  - Arrow keys or WASD: up walks away from the camera, right to the screen's right. One axis at a time, so walking into the sea slides along the shore.
+  - Clicking or tapping the ground walks there along the shortest route of walkable cells (`gridPath` in `mapGraph.js`), to the walkable cell nearest the spot.
+  - Walkable: land and every path cell (so the bridges), minus the cells landmarks stand on (`walkable.js`). Trees don't block.
+- **The Explore bar:** along the bottom. It says how to walk, or, within reach of something, what it is and a button: Visit, Open or Play for a landmark, Read for the secret. Enter does the same. Leave (or Escape) ends Explore mode and puts the page back where it was.
+- **Landmarks:** taking a landmark's prompt leaves Explore and does what clicking it does: a section scrolls into view, Resume opens the PDF, a game opens its popup.
+- **The secret:** a bottle washed up on the far tip of the J's top bar (the land cell on the About stage's island farthest from it), with a gold glint bobbing over it. Its note thanks the visitor for exploring, signed by Jason, with a "Say hi" button to Contact. The note's text is data (`worldMap.secret`).
 
 ## Not in this version
 

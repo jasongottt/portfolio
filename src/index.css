@@ -461,24 +461,62 @@ button:focus-visible {
   outline: none;
 }
 
+/* Exploring, the visitor walks to landmarks instead of clicking them. */
+[data-exploring="true"] .world-landmark {
+  display: none;
+}
+
 /* A circle under each landmark while the camera rests on the overview,
    pulsing gently so it's clear they can be clicked. It grows on hover. A
    thin dark outline keeps it visible on pale beaches. */
 .world-landmark .world-dot {
   opacity: 0;
+  box-shadow: 0 0 0 1.5px #07061a;
   transition: opacity 300ms ease, scale 150ms ease;
 }
 [data-settled="true"] .world-landmark .world-dot {
   opacity: 1;
-  animation: world-dot-pulse 1.8s ease-in-out infinite;
+}
+/* The pulse is a ring that grows and fades: scale and opacity only, so it
+   animates on the compositor without repainting. */
+.world-landmark .world-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  opacity: 0;
+}
+[data-settled="true"] .world-landmark .world-dot::after {
+  animation: world-dot-pulse 1.8s ease-out infinite;
 }
 .world-landmark:hover .world-dot,
 .world-landmark:focus-visible .world-dot {
   scale: 1.4;
 }
+/* Not over the name while it's still type (WorldBackground's opening). */
+[data-opening] .world-landmark .world-dot {
+  opacity: 0 !important;
+}
 @keyframes world-dot-pulse {
-  0%, 100% { box-shadow: 0 0 0 1.5px #07061a, 0 0 0 1.5px rgb(255 255 255 / 0.6); }
-  50% { box-shadow: 0 0 0 1.5px #07061a, 0 0 0 7px rgb(255 255 255 / 0); }
+  from { scale: 1; opacity: 0.7; }
+  to { scale: 2.2; opacity: 0; }
+}
+
+/* The scroll arrow under the first screen bobs gently. */
+.scroll-cue {
+  animation: scroll-cue 2.4s ease-in-out infinite;
+}
+@keyframes scroll-cue {
+  0%, 100% { translate: 0 0; opacity: 0.45; }
+  50% { translate: 0 7px; opacity: 0.8; }
+}
+/* On short screens the intro reaches the bottom, and the arrow would sit on
+   the Explore button. */
+@media (max-height: 760px) {
+  .scroll-cue {
+    display: none !important;
+  }
 }
 
 /* Selection brackets at the corners, blinking like a game cursor. */
