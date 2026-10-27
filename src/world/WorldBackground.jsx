@@ -6,6 +6,7 @@ import { HeroIntro } from "../sections/Hero";
 import { LAND_RAMP, MINT, SEA_AVERAGE, SEA_RAMP } from "./dusk";
 import { ExploreHud, ExploreNote } from "./ExploreHud";
 import { nameplate } from "./nameplate";
+import { meterAt, skipsFor } from "./skipStones";
 
 // The stops the character walks between: one per page section, in order.
 const STOPS = worldMap.stages.filter((stage) => stage.action.type === "section");
@@ -19,6 +20,23 @@ const APPEAR_MS = 350;
 const HOLD_MS = 900;
 const FADE_MS = 1400;
 const FADE_STAGGER_MS = 90;
+
+// The best skipping-stones throw, kept in this browser.
+const BEST_KEY = "jason-world:best-skips";
+function readBest() {
+  try {
+    return Number(localStorage.getItem(BEST_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+}
+function saveBest(skips) {
+  try {
+    localStorage.setItem(BEST_KEY, String(skips));
+  } catch {
+    // Storage is off (a private window, say): the best lasts this visit.
+  }
+}
 
 const isTyping = (target) =>
   target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
@@ -43,10 +61,10 @@ function accessibleName(stage) {
  * On load, the name sits over the islands, drawn from the same strokes the
  * islands are made from (nameplate.js), then fades to reveal them.
  *
- * Explore mode lets the visitor walk the character around. `exploring` is
- * owned by the page (App.jsx), which hides itself meanwhile; this asks to
- * change it through `onExploringChange`, from the Explore button or E, and
- * Escape or Leave.
+ * Explore mode lets the visitor walk the character around, sit by the
+ * campfire and skip stones. `exploring` is owned by the page (App.jsx),
+ * which hides itself meanwhile; this asks to change it through
+ * `onExploringChange`, from the Explore link or E, and Escape or Leave.
  */
 export default function WorldBackground({
   isPhone,
@@ -72,6 +90,12 @@ export default function WorldBackground({
   // fade in together then, not before.
   const [drawn, setDrawn] = useState(false);
   const [near, setNear] = useState(null);
+  // What the character is doing at a spot (runWorld.js), and the skipping
+  // game while it's at the beach: aiming (the meter sweeping since `since`),
+  // a stone in flight, or done.
+  const [activity, setActivity] = useState(null);
+  const [skip, setSkip] = useState(null);
+  const [best, setBest] = useState(readBest);
   const [noteOpen, setNoteOpen] = useState(false);
   // The opening name: "shown", "fading" or "gone". Skipped if the page
   // opens scrolled away from the top, where the islands aren't.
@@ -95,6 +119,10 @@ export default function WorldBackground({
           surname: surnameRef.current,
           intro: introRef.current,
           onNear: setNear,
+          onActivity: (id) => {
+            setActivity(id);
+            setSkip(id === "skipping" ? { phase: "aim", since: performance.now() } : null);
+          },
           onFirstFrame: () => setDrawn(true),
           onLost: () => setStatus("failed"),
         });
@@ -149,6 +177,11 @@ export default function WorldBackground({
     };
   }, [status, drawn, opening, letters.length]);
 
+  // He winds up while the skipping meter runs.
+  useEffect(() => {
+    worldRef.current?.setAiming(skip?.phase === "aim");
+  }, [skip, status]);
+
   useEffect(() => {
     worldRef.current?.setExploring(exploring);
     if (exploring) hudRef.current?.focus();
@@ -183,9 +216,37 @@ export default function WorldBackground({
     if (action.type === "project") onOpenProject(action.title, { focusPlayable: true });
   };
 
+  // Throws with the meter where it is now. A throw's updates only count
+  // while it's still the one in flight.
+  const throwStone = () => {
+    const skips = skipsFor(meterAt(performance.now() - skip.since));
+    const throwId = {};
+    const record = best;
+    setSkip({ phase: "flying", count: 0, throwId });
+    worldRef.current?.throwStone(skips, {
+      onTouch: (count) => setSkip((now) => (now?.throwId === throwId ? { ...now, count } : now)),
+      onDone: ({ skips: made, ashore }) => {
+        const newBest = made > record;
+        if (newBest) {
+          setBest(made);
+          saveBest(made);
+        }
+        setSkip((now) => (now?.throwId === throwId ? { phase: "done", skips: made, ashore, newBest } : now));
+      },
+    });
+  };
+
   const visit = (id) => {
+    const world = worldRef.current;
     if (id === "secret") setNoteOpen(true);
-    else leaveFor(worldMap.stages.find((stage) => stage.id === id).action);
+    else if (id === "campfire") {
+      if (activity === "campfire") world?.stopActivity();
+      else world?.startActivity("campfire");
+    } else if (id === "skipping") {
+      if (activity !== "skipping") world?.startActivity("skipping");
+      else if (skip?.phase === "aim") throwStone();
+      else if (skip?.phase === "done") setSkip({ phase: "aim", since: performance.now() });
+    } else leaveFor(worldMap.stages.find((stage) => stage.id === id).action);
   };
 
   const onKeyDown = useEffectEvent((event) => {
@@ -228,6 +289,7 @@ export default function WorldBackground({
         className={party && !reducedMotion ? "world-party" : undefined}
         style={{ ...styles.canvas, opacity: drawn ? 1 : 0 }}
       />
+
 
       {opening !== "gone" ? (
         <svg style={styles.nameplate} aria-hidden="true">
@@ -315,6 +377,9 @@ export default function WorldBackground({
                 hudRef={hudRef}
                 isPhone={isPhone}
                 near={near}
+                activity={activity}
+                skip={skip}
+                best={best}
                 onVisit={visit}
                 onLeave={stopExploring}
               />

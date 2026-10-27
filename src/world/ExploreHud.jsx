@@ -1,21 +1,65 @@
+import { useEffect, useRef } from "react";
 import { RULE, shade, tint } from "../palette";
 import { worldMap } from "../data/worldMap";
 import { MINT } from "./dusk";
+import { SWEET, meterAt } from "./skipStones";
 
 const VERB = { section: "Visit", link: "Open", project: "Play" };
+
+const skipsText = (count) => `${count} ${count === 1 ? "skip" : "skips"}`;
+
+// The skipping game's prompt (WorldBackground.jsx keeps the game): the meter
+// to time a throw on, the count as the stone skips, then how it went.
+function skippingPrompt(skip, best) {
+  if (skip.phase === "aim") return { level: "Throw when it's in the middle", meter: skip.since, verb: "Throw" };
+  if (skip.phase === "flying") return { level: "Skipping stones", title: skip.count ? skipsText(skip.count) : "…" };
+  const result =
+    skip.skips === 0 ? "Plunk. No skips" : `${skipsText(skip.skips)}${skip.ashore ? ", all the way across!" : "!"}`;
+  return {
+    level: skip.newBest ? "New best!" : `Skipping stones · Best ${best}`,
+    accent: skip.newBest,
+    title: result,
+    verb: "Again",
+  };
+}
+
+// A track with the sweet spot in the middle and a marker sweeping across it,
+// on the same clock the throw reads (meterAt).
+function SkipMeter({ since }) {
+  const markerRef = useRef(null);
+  useEffect(() => {
+    let frame = requestAnimationFrame(function sweep(now) {
+      if (markerRef.current) markerRef.current.style.left = `${meterAt(now - since) * 100}%`;
+      frame = requestAnimationFrame(sweep);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [since]);
+  return (
+    <span style={styles.meter} aria-hidden="true">
+      <span style={styles.sweet} />
+      <span ref={markerRef} style={styles.marker} />
+    </span>
+  );
+}
 
 /**
  * Explore mode's bar along the bottom: how to walk, and when the character
  * is close to something, what it is and a button to visit it. `near` is a
- * stage id, "secret", or null.
+ * stage id, "secret", "campfire", "skipping", or null. `activity` is what
+ * the character is doing at a spot (runWorld.js): by the campfire, the
+ * button gets up again; at the beach, `skip` is the skipping game, and
+ * `best` the best throw yet.
  */
-export function ExploreHud({ hudRef, isPhone, near, onVisit, onLeave }) {
+export function ExploreHud({ hudRef, isPhone, near, activity, skip, best, onVisit, onLeave }) {
   const stage = worldMap.stages.find((s) => s.id === near);
-  const prompt = stage
-    ? { level: stage.level, title: stage.banner.title, verb: VERB[stage.action.type] }
-    : near === "secret"
-      ? { level: "Secret", title: "Something washed up here", verb: "Read" }
-      : null;
+  const prompt =
+    activity === "campfire" ? { level: "Campfire", title: "Sitting by the fire", verb: "Get up" }
+    : activity === "skipping" && skip ? skippingPrompt(skip, best)
+    : stage ? { level: stage.level, title: stage.banner.title, verb: VERB[stage.action.type] }
+    : near === "secret" ? { level: "Secret", accent: true, title: "Something washed up here", verb: "Read" }
+    : near === "campfire" ? { level: "Campfire", title: "A crackling fire", verb: "Sit" }
+    : near === "skipping" ? { level: "Beach", title: "Calm water, flat stones", verb: "Skip a stone" }
+    : null;
 
   return (
     <div
@@ -28,8 +72,12 @@ export function ExploreHud({ hudRef, isPhone, near, onVisit, onLeave }) {
       <p style={styles.text} aria-live="polite">
         {prompt ? (
           <>
-            <span style={prompt.level === "Secret" ? styles.secretLevel : styles.level}>{prompt.level}</span>
-            <span style={styles.title}>{prompt.title}</span>
+            <span style={prompt.accent ? styles.accentLevel : styles.level}>{prompt.level}</span>
+            {prompt.meter !== undefined ? (
+              <SkipMeter since={prompt.meter} />
+            ) : (
+              <span style={styles.title}>{prompt.title}</span>
+            )}
           </>
         ) : (
           <>
@@ -41,7 +89,7 @@ export function ExploreHud({ hudRef, isPhone, near, onVisit, onLeave }) {
         )}
       </p>
       <div style={styles.actions}>
-        {prompt ? (
+        {prompt?.verb ? (
           <button type="button" className="pressable" style={styles.visit} onClick={() => onVisit(near)}>
             {prompt.verb}
             {!isPhone ? <kbd style={styles.kbd}>↵</kbd> : null}
@@ -133,7 +181,7 @@ const styles = {
     textTransform: "uppercase",
     color: tint(37, 86, 0.55),
   },
-  secretLevel: {
+  accentLevel: {
     fontSize: "0.62rem",
     letterSpacing: "0.14em",
     textTransform: "uppercase",
@@ -142,6 +190,34 @@ const styles = {
   title: {
     fontSize: "0.86rem",
     color: tint(50, 97),
+  },
+  // The skipping meter.
+  meter: {
+    position: "relative",
+    display: "block",
+    width: "clamp(110px, 30vw, 200px)",
+    height: "10px",
+    marginTop: "7px",
+    border: `1px solid ${RULE}`,
+    backgroundColor: shade(27, 4),
+  },
+  sweet: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: `${(0.5 - SWEET) * 100}%`,
+    width: `${SWEET * 200}%`,
+    backgroundColor: MINT,
+    opacity: 0.55,
+  },
+  marker: {
+    position: "absolute",
+    top: "-5px",
+    bottom: "-5px",
+    left: 0,
+    width: "4px",
+    marginLeft: "-2px",
+    backgroundColor: "var(--accent-warm)",
   },
   hint: {
     fontSize: "0.74rem",

@@ -3,12 +3,13 @@ import Section from "../components/Section";
 import { tint } from "../palette";
 
 /**
- * The About panel, with polaroids: tucked behind its right edge on desktop
- * (the panel stacks above them), under the text on phones.
+ * The About panel, with polaroids tucked behind it (the panel stacks above
+ * them): peeking out from its right edge on desktop, hanging from its bottom
+ * edge on phones.
  */
 export default function About({ isPhone, onViewingPhoto }) {
   const panel = (
-    <Section id="about" title="About" isPhone={isPhone} style={isPhone ? undefined : styles.above}>
+    <Section id="about" title="About" isPhone={isPhone} style={styles.above}>
       <p style={styles.bodyText}>
         I'm Jason, a student at Purdue University. I am majoring in Computer Science with a concentration in
         Computer Graphics and Visualization, as well as a major in Game Development. I care a lot about crafting
@@ -27,14 +28,12 @@ export default function About({ isPhone, onViewingPhoto }) {
           here's my fundraising page!
         </a>
       </p>
-      {isPhone ? <Polaroids isPhone onViewingChange={onViewingPhoto} /> : null}
     </Section>
   );
 
-  if (isPhone) return panel;
   return (
     <div style={styles.wrap}>
-      <Polaroids isPhone={false} onViewingChange={onViewingPhoto} />
+      <Polaroids isPhone={isPhone} onViewingChange={onViewingPhoto} />
       {panel}
     </div>
   );

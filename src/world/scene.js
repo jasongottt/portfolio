@@ -1,18 +1,24 @@
 import * as THREE from "three";
+import { createCampfire } from "./campfire";
 import { GRASS, GRASS_ALPHA, LITTER_ALPHA, foliageCode, landCode, seaCode } from "./dither";
 import { GOLD, MINT } from "./dusk";
+import { groundAim } from "./journey";
+import { createFootsteps } from "./footsteps";
+import { createLeafPiles } from "./leafPiles";
+import { createSkipping } from "./skipping";
 import { distanceField, gridPath, hopCells, nearestOpen, parseLand, pathCells, route } from "./mapGraph";
 import { landBounds } from "./nameplate";
-import { LANDMARK_SPOTS, landmarkOffset, secretCell, walkableGrid } from "./walkable";
+import { LANDMARK_SPOTS, beachHeading, campfireSeat, landmarkOffset, secretCell, walkableGrid } from "./walkable";
 
 /**
  * The world for one layout of worldMap.js: islands raised from the land
  * grid in autumn: green fields patched with fallen leaves, terraced ridges,
- * red and orange trees
- * among dark green evergreens, pumpkins, rocks and falling leaves; a moving sea
- * with lighter
- * shallows; a sky; a landmark per stage; and stepping stones, plank bridges
- * and lanterns along the paths. One world unit is one grid cell. No React.
+ * red and orange trees among dark green evergreens, pumpkins, rocks, piles
+ * of leaves to kick through (leafPiles.js) and falling leaves; a moving sea
+ * with lighter shallows; a sky; a landmark per stage; a campfire
+ * (campfire.js); beaches to skip stones from (skipping.js); and stepping
+ * stones, plank bridges and lanterns along the paths. One world unit is one
+ * grid cell. No React.
  *
  * All the scattering (ridges, trees, rocks, lanterns) is hashed from cell
  * positions, so the islands come out the same on every load.
@@ -56,6 +62,21 @@ const LANTERN_EVERY = 3;
 const LANDMARK_SCALE = 1.6;
 // The secret's bottle: pale glass, an accent drawn in its real color.
 const BOTTLE_GLASS = "#cfe3ff";
+// Share of round trees with a pile of leaves beside them, this far out.
+const PILE_SHARE = 0.3;
+const PILE_OFFSET = 0.8;
+// The walk passes through a pile on each leg, at least this many cells from
+// either end.
+const PILE_CLEARANCE = 3;
+// Bare earth this far around the campfire, which its light warms.
+const HEARTH = 1.4;
+// The sea's waves, along x (a sine) and z (a cosine): [frequency, speed,
+// height]. The sea's vertex shader moves by them, and waveAt() matches it.
+const WAVE_X = [0.35, 0.9, 0.12];
+const WAVE_Z = [0.5, 0.7, 0.1];
+const waveAt = (x, z, t) =>
+  Math.sin(x * WAVE_X[0] + t * WAVE_X[1]) * WAVE_X[2] + Math.cos(z * WAVE_Z[0] + t * WAVE_Z[1]) * WAVE_Z[2];
+const glsl = (n) => n.toFixed(2);
 
 function hash(x, y, seed = 0) {
   let h = (Math.imul(x, 2246822519) + Math.imul(y, 3266489917) + Math.imul(seed, 374761393)) | 0;
@@ -119,7 +140,8 @@ function landmarkParts(icon, { body, mint, gold }) {
  * the character walks between, in order. Returns the scene plus what the
  * frame loop needs: the land's bounds, the scroll walk, each landmark's
  * anchor (its middle) and foot points, what Explore mode needs to walk
- * anywhere, and tick() to move the sea, the leaves and the secret's glint.
+ * anywhere, and tick() to move the sea, the leaves, the fire, a thrown
+ * stone and the secret's glint.
  */
 export function buildWorld(map, layoutName, stops) {
   const layout = map.layouts[layoutName];
@@ -148,6 +170,11 @@ export function buildWorld(map, layoutName, stops) {
   mark(clear, Object.values(layout.stages), 1);
   const secret = secretCell(map, layout);
   mark(clear, [secret], 1);
+  // The campfire gets a flat clearing.
+  if (layout.campfire) {
+    mark(clear, [layout.campfire], 2);
+    mark(nearPath, [layout.campfire], 2);
+  }
 
   // Islands rise from the beach to a shoulder a couple of cells in, then,
   // along the middle of each stroke, to terraced ridges.
@@ -232,12 +259,26 @@ export function buildWorld(map, layoutName, stops) {
     }
   }
   // Fallen leaves lie under the round trees: those cells and the ones around.
+  // Some of the trees have a pile beside them, too.
   const leafy = new Set();
+  const piles = [];
   for (const { x, z } of maples) {
     const col = Math.round(x + cols / 2 - 0.5);
     const row = Math.round(z + rows / 2 - 0.5);
     for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) if (dc * dr === 0) leafy.add(cellKey(col + dc, row + dr));
+    if (hash(col, row, 70) >= PILE_SHARE) continue;
+    const angle = hash(col, row, 71) * Math.PI * 2;
+    const pile = {
+      x: x + Math.cos(angle) * PILE_OFFSET,
+      z: z + Math.sin(angle) * PILE_OFFSET,
+      size: 0.8 + hash(col, row, 72) * 0.35,
+      turn: hash(col, row, 73) * Math.PI * 2,
+    };
+    const at = [Math.round(pile.x + cols / 2 - 0.5), Math.round(pile.z + rows / 2 - 0.5)];
+    if (land.isLand(...at) && coast(...at) >= 2 && !clear.has(cellKey(...at))) piles.push(pile);
   }
+
+  const hearth = layout.campfire && toWorld(layout.campfire);
 
   // Terrain: a faceted sheet, two triangles' worth of detail per cell.
   const terrain = keep(new THREE.PlaneGeometry(cols, rows, cols * 2, rows * 2).rotateX(-Math.PI / 2).toNonIndexed());
@@ -264,13 +305,15 @@ export function buildWorld(map, layoutName, stops) {
     // the water, so the shoreline is one band rather than a zigzag of
     // sand and beach triangles. Terrace slopes take the field's color too
     // (the light shades them): at this size, rock-colored slopes read as
-    // stray dark specks.
-    const field = !(y < 0.75 || y > 2.8);
+    // stray dark specks. Bare earth around the campfire.
+    const bare = hearth && Math.hypot(x - hearth[0], z - hearth[2]) < HEARTH;
+    const field = !bare && !(y < 0.75 || y > 2.8);
     const cell = cellKey(Math.round(x + cols / 2 - 0.5), Math.round(z + rows / 2 - 0.5));
     const green = field && !leafy.has(cell);
     const patchy = (noise(x + cols, z + rows, 3, 20) - 0.5) * 0.4;
     const [channel, brightness] =
-      Math.max(...corners) < 0.15 ? [0, 0.25]
+      bare ? [0, 0.5]
+      : Math.max(...corners) < 0.15 ? [0, 0.25]
       : y < 0.75 ? [0, 0.92]
       : y > 2.8 ? [0, 0.86]
       : green ? [1, 0.85 + patchy]
@@ -283,12 +326,11 @@ export function buildWorld(map, layoutName, stops) {
     }
   }
   terrain.setAttribute("color", new THREE.BufferAttribute(colors, 4));
-  scene.add(
-    new THREE.Mesh(
-      terrain,
-      keep(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, blending: THREE.NoBlending }))
-    )
+  const ground = new THREE.Mesh(
+    terrain,
+    keep(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, blending: THREE.NoBlending }))
   );
+  scene.add(ground);
 
   // Sea: a wide sheet whose vertex shader moves the waves. Flat shading
   // works the facet normals out per pixel, so the waves light correctly.
@@ -316,7 +358,8 @@ export function buildWorld(map, layoutName, stops) {
       "#include <begin_vertex>",
       `#include <begin_vertex>
       vShallowUv = vec2(position.x / uGrid.x + 0.5, 0.5 - position.z / uGrid.y);
-      transformed.y += sin(position.x * 0.35 + uTime * 0.9) * 0.12 + cos(position.z * 0.5 + uTime * 0.7) * 0.1;`
+      transformed.y += sin(position.x * ${glsl(WAVE_X[0])} + uTime * ${glsl(WAVE_X[1])}) * ${glsl(WAVE_X[2])}
+        + cos(position.z * ${glsl(WAVE_Z[0])} + uTime * ${glsl(WAVE_Z[1])}) * ${glsl(WAVE_Z[2])};`
     );
     shader.fragmentShader = `uniform sampler2D uShallows;\nvarying vec2 vShallowUv;\n${shader.fragmentShader}`.replace(
       "vec4 diffuseColor = vec4( diffuse, opacity );",
@@ -540,16 +583,73 @@ export function buildWorld(map, layoutName, stops) {
   glint.position.set(secretX, secretY + 0.8, secretZ);
   scene.add(bottle, glint);
 
+  // The campfire, with its seat on the camera's side.
+  let campfire = null;
+  if (layout.campfire) {
+    const onGround = (cell) => {
+      const point = toWorld(cell);
+      point[1] = Math.max(0, heightAt(point[0], point[2]));
+      return point;
+    };
+    const fire = onGround(layout.campfire);
+    const seat = onGround(campfireSeat(layout.campfire));
+    campfire = { fire, seat, ...keep(createCampfire({ fire, seat, forward: groundAim.forward })) };
+    scene.add(...campfire.objects);
+  }
+
   // Explore mode: which cells can be walked, and the spots that can be
-  // visited (each stage, and the secret).
+  // visited (each stage, the secret and the campfire).
   const grid = walkableGrid(map, layout);
   const cellOf = (x, z) => [Math.round(x + cols / 2 - 0.5), Math.round(z + rows / 2 - 0.5)];
+
+  // Skipping stones, from any beach out over open water; a stone stops on
+  // land or a bridge.
+  const bridgeCells = new Set(pathCellsAll.map(([col, row]) => cellKey(col, row)));
+  const solid = (col, row) => land.isLand(col, row) || bridgeCells.has(cellKey(col, row));
+  const skipping = keep(
+    createSkipping({
+      isWater: (x, z) => !solid(...cellOf(x, z)),
+      groundY: (x, z) => Math.max(PLANK_HEIGHT, heightAt(x, z)),
+      waveAt,
+    })
+  );
+  scene.add(...skipping.objects);
+  // Puffs where Jason's feet land, the colors of the ground there.
+  const footsteps = keep(
+    createFootsteps({
+      colors: {
+        sand: [landCode(0.9), landCode(0.97)],
+        leaves: LEAF_CODES.map((code) => foliageCode(code * 0.9)),
+        stone: [landCode(0.86)],
+        plank: [landCode(0.45), landCode(0.55)],
+      },
+      grass: foliageCode(1.05),
+    })
+  );
+  scene.add(...footsteps.objects);
+  const groundKind = (x, z) => {
+    const cell = cellOf(x, z);
+    if (!land.isLand(...cell)) return "plank";
+    const y = heightAt(x, z);
+    if (y < 0.75) return "sand";
+    if (y > 2.8) return "stone";
+    return leafy.has(cellKey(...cell)) ? "leaves" : "grass";
+  };
+
+  const beaches = new Map();
+  const beachAt = (x, z) => {
+    const cell = cellOf(x, z);
+    const key = cellKey(...cell);
+    if (!beaches.has(key)) beaches.set(key, beachHeading(land, solid, cell, groundAim.forward));
+    return beaches.get(key);
+  };
   const spots = [
     ...map.stages.map((stage) => {
       const [x, , z] = toWorld(layout.stages[stage.id]);
       return { id: stage.id, x, z };
     }),
     { id: "secret", x: secretX, z: secretZ },
+    ...(campfire ? [{ id: "campfire", x: campfire.fire[0], z: campfire.fire[2] }] : []),
   ];
 
   // The walk: every cell from the first stop to the last, and where each
@@ -562,6 +662,23 @@ export function buildWorld(map, layoutName, stops) {
     stopIndex.push(walk.length - 1);
   }
   const walkPoints = walk.map(groundAt);
+
+  // A pile on each leg of the walk, on land as near the middle as there is.
+  for (let i = 1; i < stopIndex.length; i++) {
+    const from = stopIndex[i - 1] + PILE_CLEARANCE;
+    const to = stopIndex[i] - PILE_CLEARANCE;
+    const middle = (from + to) / 2;
+    let best = null;
+    for (let j = from; j <= to; j++) {
+      if (land.isLand(...walk[j]) && (best === null || Math.abs(j - middle) < Math.abs(best - middle))) best = j;
+    }
+    if (best !== null) {
+      const [x, , z] = toWorld(walk[best]);
+      piles.push({ x, z, size: 0.95, turn: hash(...walk[best], 74) * Math.PI * 2 });
+    }
+  }
+  const leafPiles = keep(createLeafPiles({ spots: piles, heightAt, time, codes: LEAF_CODES }));
+  scene.add(...leafPiles.objects);
 
   const bounds = landBounds(layout);
 
@@ -583,6 +700,18 @@ export function buildWorld(map, layoutName, stops) {
     },
     /** Where feet go at (x, z): the ground, or the planks over water. */
     groundAt: (x, z) => [x, Math.max(PLANK_HEIGHT + 0.08, heightAt(x, z)), z],
+    /**
+     * Where `raycaster` meets what shows there: the ground, or over water, the
+     * sea's surface. [x, z], or null off the map.
+     */
+    pick(raycaster) {
+      const hit = raycaster.intersectObject(ground, false)[0];
+      if (!hit) return null;
+      if (hit.point.y >= 0) return [hit.point.x, hit.point.z];
+      const { origin, direction } = raycaster.ray;
+      const reach = -origin.y / direction.y;
+      return [origin.x + direction.x * reach, origin.z + direction.z * reach];
+    },
     /** Whether Explore mode can stand at (x, z). */
     open: (x, z) => grid.isOpen(...cellOf(x, z)),
     /**
@@ -597,15 +726,35 @@ export function buildWorld(map, layoutName, stops) {
         return [cx, cz];
       });
     },
-    /** What can be visited in Explore mode: { id, x, z }, ids are stage ids or "secret". */
+    /** What can be visited in Explore mode: { id, x, z }, ids are stage ids, "secret" or "campfire". */
     spots,
-    /** Moves things along to `seconds`. `still` (reduced motion) hides the leaves. */
-    tick(seconds, camera, still) {
+    /** The campfire's { fire, seat } ([x, y, z] each), or null. */
+    campfire: campfire && { fire: campfire.fire, seat: campfire.seat },
+    /**
+     * Which way to skip a stone from (x, z), a unit [x, z] out over open
+     * water, or null if it isn't a beach (walkable.js).
+     */
+    beachAt,
+    /** throwStone() and stoneAt(), where a thrown stone is in the air (skipping.js). */
+    skipping,
+    /** A puff of whatever the ground is, where a foot lands at [x, y, z], at `seconds`. */
+    footstep(point, seconds) {
+      footsteps.puff(point, groundKind(point[0], point[2]), seconds);
+    },
+    /**
+     * Moves things along to `seconds`, the character's feet at `feet`.
+     * `still` (reduced motion) hides the leaves and holds the fire.
+     */
+    tick(seconds, camera, still, feet) {
       time.value = seconds;
       sky.position.copy(camera.position);
       leafMesh.visible = !still;
       glint.position.y = secretY + 0.8 + Math.sin(seconds * 3) * 0.12;
       glint.rotation.y = seconds * 2;
+      leafPiles.update(seconds, feet, still);
+      campfire?.update(seconds, still);
+      skipping.update(seconds, still);
+      footsteps.update(seconds);
     },
     dispose() {
       for (const thing of disposables) thing.dispose();

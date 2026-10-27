@@ -14,8 +14,9 @@ import { FOLIAGE_RAMP, GRASS_RAMP, LAND_RAMP, LITTER_RAMP, SEA_RAMP } from "./du
  *   sea and sky        brightness in blue            -> SEA_RAMP
  *   accents             any real color, i.e. red and  -> drawn as they are
  *                       green both lit
- * Lights are white and the fog only adds blue, so a code color's empty
- * channels stay empty; only real colors light red and green together. A
+ * Lights only scale each channel (white, or tinted, like the campfire's) and
+ * the fog only adds blue, so a code color's empty channels stay empty; only
+ * real colors light red and green together. A
  * surface's faces each take a single code (scene.js), so no triangle blends
  * two of them into a false accent. Everything else draws fully opaque, so
  * alpha marks grass and fallen leaves however the fog shifts their color
@@ -48,7 +49,8 @@ const fragmentShader = /* glsl */ `
   uniform vec3 grassRamp[6];
   uniform vec3 litterRamp[6];
   uniform vec3 seaRamp[6];
-  varying vec2 vUv;
+  uniform vec2 uWorld;
+  uniform float uScale;
 
   const float bayer[64] = float[64](${BAYER_8.map((n) => `${n}.0`).join(", ")});
 
@@ -59,15 +61,15 @@ const fragmentShader = /* glsl */ `
   }
 
   void main() {
-    vec4 scene = texture2D(tScene, vUv);
+    // The world pixel this screen pixel shows.
+    vec2 pixel = floor(gl_FragCoord.xy / uScale);
+    vec4 scene = texture2D(tScene, (pixel + 0.5) / uWorld);
     vec3 color = scene.rgb;
     if (color.r > 0.02 && color.g > 0.02) {
       gl_FragColor = vec4(color, 1.0);
       return;
     }
-    // The canvas is already one pixel per world pixel, so the dither cell is
-    // just the fragment's position.
-    vec2 cell = mod(floor(gl_FragCoord.xy), 8.0);
+    vec2 cell = mod(pixel, 8.0);
     float threshold = (bayer[int(cell.y) * 8 + int(cell.x)] + 0.5) / 64.0;
     bool litter = scene.a < ${(LITTER_ALPHA + GRASS_ALPHA) / 2};
     bool grass = !litter && scene.a < ${(GRASS_ALPHA + 1) / 2};
@@ -86,15 +88,21 @@ const fragmentShader = /* glsl */ `
 `;
 
 /**
- * Renders a scene into a target the size of the canvas, then dithers it onto
- * the canvas. The canvas itself is low resolution and scaled up with
- * nearest-neighbor sampling (runWorld.js), which gives the big pixels.
+ * Renders a scene into a low-resolution target, a pixel per world pixel, then
+ * dithers it onto the canvas, which is at the screen's resolution: each world
+ * pixel becomes a block of `scale` screen pixels, which gives the big pixels.
+ * The target keeps its depth (`depth`), so things drawn over the world at
+ * the screen's resolution (character.js) can still be hidden by it, a world
+ * pixel at a time; `world` and `scale` are the uniforms they need for that.
  */
 export function createDither(renderer) {
   const target = new THREE.WebGLRenderTarget(1, 1, {
     minFilter: THREE.NearestFilter,
     magFilter: THREE.NearestFilter,
+    depthTexture: new THREE.DepthTexture(1, 1),
   });
+  const world = { value: new THREE.Vector2(1, 1) };
+  const scale = { value: 1 };
   const material = new THREE.ShaderMaterial({
     uniforms: {
       tScene: { value: target.texture },
@@ -103,8 +111,10 @@ export function createDither(renderer) {
       grassRamp: { value: GRASS_RAMP.map((hex) => new THREE.Color(hex)) },
       litterRamp: { value: LITTER_RAMP.map((hex) => new THREE.Color(hex)) },
       seaRamp: { value: SEA_RAMP.map((hex) => new THREE.Color(hex)) },
+      uWorld: world,
+      uScale: scale,
     },
-    vertexShader: "varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }",
+    vertexShader: "void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }",
     fragmentShader,
     depthTest: false,
     depthWrite: false,
@@ -115,8 +125,14 @@ export function createDither(renderer) {
   const postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
   return {
-    setSize(width, height) {
+    depth: target.depthTexture,
+    world,
+    scale,
+    /** The world's size in world pixels, and screen pixels per world pixel. */
+    setSize(width, height, pixelScale) {
       target.setSize(width, height);
+      world.value.set(width, height);
+      scale.value = pixelScale;
     },
     render(scene, camera) {
       renderer.setRenderTarget(target);
@@ -125,6 +141,7 @@ export function createDither(renderer) {
       renderer.render(postScene, postCamera);
     },
     dispose() {
+      target.depthTexture.dispose();
       target.dispose();
       material.dispose();
       quad.geometry.dispose();

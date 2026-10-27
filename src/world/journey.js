@@ -103,6 +103,18 @@ export function followPose([x, y, z], aspect) {
   };
 }
 
+/**
+ * The follow camera's view across the ground, as unit [x, z] vectors:
+ * `forward` walks away from the camera, `right` to the screen's right.
+ */
+export const groundAim = (() => {
+  const { position, target } = followPose([0, 0, 0], 1);
+  const ax = target[0] - position[0];
+  const az = target[2] - position[2];
+  const length = Math.hypot(ax, az);
+  return { forward: [ax / length, az / length], right: [-az / length, ax / length] };
+})();
+
 /** Between two poses, `amount` (0 to 1) of the way from `a` to `b`. */
 export function blendPoses(a, b, amount) {
   const mix = (p, q) => p.map((value, i) => value + (q[i] - value) * amount);

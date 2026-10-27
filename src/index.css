@@ -463,18 +463,15 @@ button:focus-visible {
 /* ------------------------------------------------------------------ *
  *  Pixel sprites (world/pixelArt.js), as section headings wear them.
  *  Each class is one color; SVG attributes can't read custom properties,
- *  so the art takes these. Gold, mint, skin and hair stay fixed.
+ *  so the art takes these. Gold and mint stay fixed.
  * ------------------------------------------------------------------ */
 
 .px-outline { fill: hsl(var(--hue) calc(40% * var(--sat)) 6%); }
 .px-light { fill: hsl(var(--hue) calc(40% * var(--sat)) 88%); }
 .px-mid { fill: hsl(var(--hue) calc(24% * var(--sat)) 58%); }
 .px-dark { fill: hsl(var(--hue) calc(35% * var(--sat)) 18%); }
-.px-pants { fill: hsl(var(--hue) calc(30% * var(--sat)) 24%); }
 .px-gold { fill: #f2c66e; }
 .px-mint { fill: #86ecb6; }
-.px-skin { fill: #f1c9a5; }
-.px-hair { fill: #5a3a22; }
 
 /* ------------------------------------------------------------------ *
  *  The world (world/WorldBackground.jsx)

@@ -1,11 +1,10 @@
 /**
- * Pixel art: the landmark sprites section headings wear, and the character
- * the world draws on a billboard (character.js).
+ * Pixel art: the landmark sprites section headings wear. (The character the
+ * world draws is in heroSprite.js.)
  *
  * Sprites are rows of characters, one per pixel. Each character is a color
  * with a CSS class (index.css), so the site hue colors it:
  *   o outline   l light   m mid   d dark   g gold   t mint
- *   s skin      h hair    p pants
  */
 
 export const PIXEL_CLASS = {
@@ -15,9 +14,6 @@ export const PIXEL_CLASS = {
   d: "px-dark",
   g: "px-gold",
   t: "px-mint",
-  s: "px-skin",
-  h: "px-hair",
-  p: "px-pants",
 };
 
 const grid = (width, height) => Array.from({ length: height }, () => new Array(width).fill("."));
@@ -120,13 +116,6 @@ export const SPRITES = {
   ],
   ship: sailboat(),
   ring: boxingRing(),
-};
-
-// The character: a standing frame and a stepping frame for the walk cycle.
-const HERO_BODY = [".hhh.", "hhhhh", ".sss.", ".sss.", "ttttt", "sttts", ".ttt."];
-export const HERO = {
-  stand: [...HERO_BODY, ".p.p.", ".o.o."],
-  step: [...HERO_BODY, "p...p", "o...o"],
 };
 
 const rectPath = (x, y, width, height) => `M${x} ${y}h${width}v${height}h${-width}Z`;

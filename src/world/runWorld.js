@@ -1,8 +1,9 @@
 import * as THREE from "three";
-import { createCharacter } from "./character";
+import { THROW_FRAME, createCharacter } from "./character";
 import { createDither } from "./dither";
-import { FOV, FRAME_Y, blendPoses, followPose, journeyAt, overviewPose } from "./journey";
+import { FOV, FRAME_Y, blendPoses, followPose, groundAim, journeyAt, overviewPose } from "./journey";
 import { layoutFor } from "./nameplate";
+import { RELEASE_FRAME } from "./heroSprite";
 import { buildWorld } from "./scene";
 
 // Screen pixels per world pixel. Phones get finer pixels, or the letters
@@ -31,6 +32,16 @@ const WALK_SPAN = 0.55;
 const EXPLORE_SPEED = 5.5;
 const NEAR = 1.6;
 const EDGE = 0.3;
+// Sitting by the campfire, the camera comes this share of the way in, and
+// looks between the character and the fire.
+const FIRESIDE_ZOOM = 0.4;
+// While a skipped stone is in the air, the camera looks this share of the
+// way from the character to it. The character's throw (the swing, then the
+// follow-through, held) takes THROW_SECONDS; the stone leaves his hand on
+// the release frame.
+const FOLLOW_STONE = 0.45;
+const THROW_SECONDS = 1.2;
+const RELEASE_SECONDS = RELEASE_FRAME * THROW_FRAME;
 const EXPLORE_KEYS = {
   ArrowUp: "up",
   KeyW: "up",
@@ -45,18 +56,9 @@ const EXPLORE_KEYS = {
 // world redraws at this rate instead of every frame: the sea and leaves keep
 // drifting, for half the work.
 const IDLE_FPS = 30;
-// Taps are aimed at a plane about as high as the islands' shoulders.
+// Taps are aimed at the ground, or off the map, at a plane about as high as
+// the islands' shoulders.
 const TAP_HEIGHT = 0.8;
-
-// Up walks away from the camera and right walks to the screen's right: the
-// follow camera's view across the ground, and square to it.
-const aim = (() => {
-  const { position, target } = followPose([0, 0, 0], 1);
-  const ax = target[0] - position[0];
-  const az = target[2] - position[2];
-  const length = Math.hypot(ax, az);
-  return { forward: [ax / length, az / length], right: [-az / length, ax / length] };
-})();
 
 const smoothstep = (t) => t * t * (3 - 2 * t);
 
@@ -74,12 +76,18 @@ const smoothstep = (t) => t * t * (3 - 2 * t);
  *   under the word in the overview; surname and intro fade in only once the
  *   camera has settled there, and the intro only at the top of the page.
  * - onNear: in Explore mode, called with the id of the spot the character
- *   is close enough to visit (a stage id, or "secret"), or null.
+ *   is close enough to visit (a stage id, "secret", "campfire" or
+ *   "skipping"), or null.
+ * - onActivity: in Explore mode, called with what the character is doing at
+ *   a spot: "campfire" (sitting by it), "skipping" (at the water's edge,
+ *   ready to throw), or null.
  * - onFirstFrame: called once the world has drawn its first frame.
  * - onLost: called if the browser takes the WebGL context away.
  *
  * In Explore mode (setExploring) the visitor walks the character instead of
- * the scroll: arrow keys or WASD, or walkTo() a point on screen.
+ * the scroll: arrow keys or WASD, or walkTo() a point on screen. It can
+ * startActivity() at the campfire or on any beach, and throwStone()
+ * there.
  */
 export function runWorld({
   canvas,
@@ -92,6 +100,7 @@ export function runWorld({
   surname,
   intro,
   onNear,
+  onActivity,
   onFirstFrame,
   onLost,
 }) {
@@ -102,7 +111,11 @@ export function runWorld({
 
   const dither = createDither(renderer);
   const camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 1000);
-  const character = createCharacter();
+  // Jason, drawn over the world at the screen's resolution (character.js),
+  // in a scene of his own.
+  const character = createCharacter(dither);
+  const heroScene = new THREE.Scene();
+  heroScene.add(character.sprite);
 
   let world = null;
   let layoutName = null;
@@ -119,6 +132,8 @@ export function runWorld({
   let lastScrollY = -1;
   let distance = 0;
   let facing = 1;
+  // Which way he's walking on screen: "side", "toward" the camera or "away".
+  let view = "side";
   const cameraPosition = new THREE.Vector3();
   const cameraTarget = new THREE.Vector3();
   const overviewPosition = new THREE.Vector3();
@@ -131,6 +146,17 @@ export function runWorld({
 
   let exploring = false;
   const explorer = { x: 0, z: 0, route: [] };
+  // What the character is doing at a spot, and the one it's walking over
+  // to do (startActivity). On a beach: where he stands and which way he
+  // throws, whether he's aiming, seconds left of his throw, and the stone
+  // waiting for its release.
+  let activity = null;
+  let headingTo = null;
+  let skipFrom = null;
+  let skipHeading = null;
+  let aiming = false;
+  let throwing = 0;
+  let release = null;
   const held = new Set();
   let near = null;
   const raycaster = new THREE.Raycaster();
@@ -153,6 +179,18 @@ export function runWorld({
     onNear?.(id);
   };
 
+  const setActivity = (value) => {
+    headingTo = null;
+    if (value === activity) return;
+    if (activity === "skipping") {
+      aiming = false;
+      throwing = 0;
+      release = null;
+    }
+    activity = value;
+    onActivity?.(value);
+  };
+
   // Puts the explorer where the scroll walk has the character.
   const placeExplorer = () => {
     const [x, , z] = world.pointAlong(distance);
@@ -166,9 +204,11 @@ export function runWorld({
     const across = (held.has("right") ? 1 : 0) - (held.has("left") ? 1 : 0);
     const start = [explorer.x, explorer.z];
     if (along || across) {
+      setActivity(null);
       explorer.route = [];
-      let dx = aim.forward[0] * along + aim.right[0] * across;
-      let dz = aim.forward[1] * along + aim.right[1] * across;
+      // Up walks away from the camera and right walks to the screen's right.
+      let dx = groundAim.forward[0] * along + groundAim.right[0] * across;
+      let dz = groundAim.forward[1] * along + groundAim.right[1] * across;
       const length = Math.hypot(dx, dz);
       dx = (dx / length) * EXPLORE_SPEED * delta;
       dz = (dz / length) * EXPLORE_SPEED * delta;
@@ -191,11 +231,13 @@ export function runWorld({
           budget = 0;
         }
       }
+      if (headingTo && !explorer.route.length) setActivity(headingTo);
     }
     return explorer.x !== start[0] || explorer.z !== start[1];
   }
 
-  // The visitable spot within reach of the explorer, if any.
+  // The visitable spot within reach of the explorer, if any; failing that, a
+  // beach to skip stones from.
   function spotNearby() {
     let best = null;
     let bestGap = NEAR;
@@ -206,7 +248,7 @@ export function runWorld({
         bestGap = gap;
       }
     }
-    return best;
+    return best ?? (activity === "skipping" || world.beachAt(explorer.x, explorer.z) ? "skipping" : null);
   }
 
   const onKey = (event) => {
@@ -230,6 +272,7 @@ export function runWorld({
     world.scene.add(character.object);
     layoutName = name;
     snap = true;
+    setActivity(null);
     if (exploring) placeExplorer();
   }
 
@@ -237,10 +280,13 @@ export function runWorld({
     size = [width, height];
     const pixelSize = pixelSizeFor(width);
     const pixels = [Math.ceil(width / pixelSize), Math.ceil(height / pixelSize)];
-    renderer.setSize(pixels[0], pixels[1], false);
+    // The world is drawn a pixel per world pixel, then blown up onto a canvas
+    // at the screen's own resolution (up to 2x), where Jason is drawn too.
+    const ratio = Math.min(2, window.devicePixelRatio || 1);
+    renderer.setSize(Math.round(pixels[0] * pixelSize * ratio), Math.round(pixels[1] * pixelSize * ratio), false);
     canvas.style.width = `${pixels[0] * pixelSize}px`;
     canvas.style.height = `${pixels[1] * pixelSize}px`;
-    dither.setSize(pixels[0], pixels[1]);
+    dither.setSize(pixels[0], pixels[1], pixelSize * ratio);
 
     camera.aspect = width / height;
     frameAt(0.5);
@@ -353,9 +399,21 @@ export function runWorld({
     }
 
     // The camera: the follow pose and the overview, blended by the journey.
-    // Exploring, it just follows, centered, since the page is out of the way.
+    // Exploring, it just follows, centered, since the page is out of the way;
+    // by the campfire, it comes in close, and it watches a skipped stone go.
     const pulledBack = exploring ? 0 : smoothstep(journey.overview);
-    const pose = blendPoses(followPose(point, width / height), overview, pulledBack);
+    let pose = blendPoses(followPose(point, width / height), overview, pulledBack);
+    const sitting = activity === "campfire";
+    const stone = activity === "skipping" ? world.skipping.stoneAt() : null;
+    if (sitting) {
+      const { fire } = world.campfire;
+      const between = [(point[0] + fire[0]) / 2, point[1] + 0.8, (point[2] + fire[2]) / 2];
+      const back = pose.position.map((v, i) => (v - pose.target[i]) * (1 - FIRESIDE_ZOOM));
+      pose = { position: between.map((v, i) => v + back[i]), target: between };
+    } else if (stone) {
+      const shift = [(stone[0] - point[0]) * FOLLOW_STONE, 0, (stone[2] - point[2]) * FOLLOW_STONE];
+      pose = { position: pose.position.map((v, i) => v + shift[i]), target: pose.target.map((v, i) => v + shift[i]) };
+    }
     const followX = open && !exploring ? openCenter / width : 0.5;
     frameAt(followX + (0.5 - followX) * pulledBack);
     goalPosition.set(...pose.position);
@@ -372,11 +430,43 @@ export function runWorld({
     camera.lookAt(cameraTarget);
     camera.updateMatrixWorld();
 
-    // Face the way the walk goes across the screen.
+    // Face the way the walk goes across the screen, the fire, or the throw
+    // (his swing goes left to right; straight out from the screen, either).
     right.setFromMatrixColumn(camera.matrixWorld, 0);
-    const across = (point[0] - before[0]) * right.x + (point[2] - before[2]) * right.z;
-    if (walking && Math.abs(across) > 1e-4) facing = across < 0 ? -1 : 1;
-    character.update(point, { walking, facing, delta });
+    const [a, b] = sitting ? [point, world.campfire.fire] : [before, point];
+    const across = (b[0] - a[0]) * right.x + (b[2] - a[2]) * right.z;
+    if ((walking || sitting) && Math.abs(across) > 1e-4) facing = across < 0 ? -1 : 1;
+    if (activity === "skipping") {
+      const out = skipHeading[0] * right.x + skipHeading[1] * right.z;
+      if (Math.abs(out) > 0.3) facing = out < 0 ? -1 : 1;
+    }
+    // Walking mostly up or down the screen, he walks away or toward the
+    // camera; mostly across, side on. In between, he keeps the view he had.
+    // Steering with keys, it's the way he's steered, not the way he goes (he
+    // slides along shores).
+    const moveX = point[0] - before[0];
+    const moveZ = point[2] - before[2];
+    const steering = exploring && held.size > 0;
+    const sideways = steering ? (held.has("right") ? 1 : 0) - (held.has("left") ? 1 : 0) : across;
+    const along = steering
+      ? (held.has("up") ? 1 : 0) - (held.has("down") ? 1 : 0)
+      : moveX * groundAim.forward[0] + moveZ * groundAim.forward[1];
+    if (walking && Math.abs(along) > Math.abs(sideways) * 1.4) view = along > 0 ? "away" : "toward";
+    else if (walking && Math.abs(sideways) > Math.abs(along)) view = "side";
+    throwing = Math.max(0, throwing - delta);
+    const footfall = character.update(point, {
+      walking,
+      moved: Math.hypot(moveX, moveZ),
+      view,
+      sitting,
+      aiming: activity === "skipping" && aiming,
+      throwing: throwing > 0,
+      facing,
+      delta,
+      eye: camera.position,
+      still: reducedMotion,
+    });
+    if (footfall && !reducedMotion) world.footstep(point, now / 1000);
 
     const settled =
       !exploring &&
@@ -392,8 +482,17 @@ export function runWorld({
     const reach = cameraPosition.distanceTo(cameraTarget);
     world.scene.fog.near = reach + 20;
     world.scene.fog.far = reach + 150;
-    world.tick(reducedMotion ? 0 : now / 1000, camera, reducedMotion);
+    // The stone leaves his hand partway through the swing.
+    if (release && throwing <= THROW_SECONDS - RELEASE_SECONDS) {
+      const { skips, handlers } = release;
+      release = null;
+      world.skipping.throwStone(skipFrom, skipHeading, skips, now / 1000, false, handlers);
+    }
+    world.tick(reducedMotion ? 0 : now / 1000, camera, reducedMotion, point);
     dither.render(world.scene, camera);
+    renderer.autoClear = false;
+    renderer.render(heroScene, camera);
+    renderer.autoClear = true;
     resting =
       !walking &&
       cameraPosition.distanceToSquared(goalPosition) < 1e-4 &&
@@ -441,20 +540,62 @@ export function runWorld({
       held.clear();
       layer.dataset.exploring = String(value);
       if (value) placeExplorer();
-      else setNear(null);
+      else {
+        setActivity(null);
+        setNear(null);
+      }
+    },
+    /**
+     * Exploring: sits by the "campfire" (walking over to its seat first), or
+     * on a beach, gets ready to skip stones ("skipping"), out over the open
+     * water. onActivity hears once he's there.
+     */
+    startActivity(id) {
+      if (!exploring || activity === id) return;
+      if (id === "skipping") {
+        const heading = world.beachAt(explorer.x, explorer.z);
+        if (!heading) return;
+        explorer.route = [];
+        skipFrom = world.groundAt(explorer.x, explorer.z);
+        skipHeading = heading;
+        setActivity("skipping");
+        return;
+      }
+      if (!world.campfire) return;
+      const [x, , z] = world.campfire.seat;
+      explorer.route = [...world.routeTo([explorer.x, explorer.z], [x, z]), [x, z]];
+      headingTo = id;
+    },
+    /** Stops what the character is doing at a spot (gets up from the fire). */
+    stopActivity() {
+      setActivity(null);
+    },
+    /** On a beach: whether he's winding up while the meter runs. */
+    setAiming(value) {
+      aiming = value;
+    },
+    /**
+     * On a beach: swings and throws a stone meant to skip `skips` times.
+     * `handlers` hear each skip and the end (skipping.js).
+     */
+    throwStone(skips, handlers) {
+      if (activity !== "skipping") return;
+      aiming = false;
+      throwing = THROW_SECONDS;
+      if (reducedMotion) world.skipping.throwStone(skipFrom, skipHeading, skips, 0, true, handlers);
+      else release = { skips, handlers };
     },
     /** Exploring: walks the character to the ground under a point on screen. */
     walkTo(clientX, clientY) {
       if (!exploring) return;
+      setActivity(null);
       tap.set((clientX / size[0]) * 2 - 1, 1 - (clientY / size[1]) * 2);
       raycaster.setFromCamera(tap, camera);
       const { origin, direction } = raycaster.ray;
       if (direction.y >= 0) return;
       const reach = (TAP_HEIGHT - origin.y) / direction.y;
-      explorer.route = world.routeTo(
-        [explorer.x, explorer.z],
-        [origin.x + direction.x * reach, origin.z + direction.z * reach]
-      );
+      const to = world.pick(raycaster) ?? [origin.x + direction.x * reach, origin.z + direction.z * reach];
+      explorer.route = world.routeTo([explorer.x, explorer.z], to);
     },
     dispose() {
       cancelAnimationFrame(frameId);

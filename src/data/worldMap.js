@@ -22,7 +22,8 @@ const playableCount = projects.filter((project) => project.playableEmbed).length
  *   from nameIslands.js, '#' for land and '.' for water, one character per
  *   cell. Stage positions and path corners are [col, row]. Corners are keyed
  *   "from>to" in the same order the path is listed in `paths`. Where a path
- *   crosses water, the world lays a plank bridge.
+ *   crosses water, the world lays a plank bridge. `campfire` is the cell of
+ *   the fire Explore mode can sit at, near the last stop, off the paths.
  *
  * - secret: what Explore mode hides for people who wander. It washes up on
  *   the island of the `island` stage, as far from it as that island goes.
@@ -129,6 +130,8 @@ export const worldMap = {
         resume: [108, 32],
       },
       corners: {},
+      // Inside the bottom of the O, up and left of the mailbox.
+      campfire: [72, 29],
     },
     // JA over SON.: along the JA baseline, down to the top of the O, over to
     // the S, then along the SON. baseline.
@@ -149,6 +152,8 @@ export const worldMap = {
         "projects>contact": [[16, 52]],
         "shadow-boxing>resume": [[60, 60]],
       },
+      // Up the O's left side, above the mailbox.
+      campfire: [27, 46],
     },
   },
 };
