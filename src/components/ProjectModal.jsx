@@ -418,7 +418,7 @@ const styles = {
     lineHeight: 0.95,
     letterSpacing: "-0.045em",
     color: tint(100, 98),
-    fontFamily: '"Playfair Display", serif',
+    fontFamily: "var(--heading)",
     fontWeight: 500,
   },
   lead: {

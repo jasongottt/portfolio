@@ -136,7 +136,7 @@ const styles = {
   page: {
     position: "relative",
     zIndex: 1,
-    fontFamily: '"Geist Variable", sans-serif',
+    fontFamily: "var(--body)",
     padding: "0 32px",
     lineHeight: 1.6,
     color: tint(50, 94),

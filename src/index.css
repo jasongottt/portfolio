@@ -1,8 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
-@import "@fontsource-variable/geist-mono";
+@import "@fontsource/young-serif";
+@import "@fontsource-variable/onest";
+/* With its width axis, so the phone nav can set it narrower (Nav.jsx). */
+@import "@fontsource-variable/martian-mono/wdth.css";
 
 :root {
   /* The site's one hue: the indigo of the world's dusk sea. Every accent
@@ -25,10 +27,12 @@
     rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: 'Playfair Display', serif;
-  --mono: 'Geist Mono Variable', ui-monospace, Consolas, monospace;
+  /* The site's three typefaces: headings, the page's text, and labels. */
+  --heading: 'Young Serif', serif;
+  --body: 'Onest Variable', sans-serif;
+  --mono: 'Martian Mono Variable', ui-monospace, Consolas, monospace;
 
-  font: 18px/145% var(--sans);
+  font: 18px/145% var(--body);
   letter-spacing: 0.18px;
   color-scheme: light dark;
   color: var(--text);
@@ -216,7 +220,7 @@ code {
 }
 
 :root {
-  --font-sans: 'Geist Variable', sans-serif;
+  --font-sans: 'Onest Variable', sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -488,6 +492,14 @@ button:focus-visible {
 }
 .world-landmark:focus-visible {
   outline: none;
+}
+
+/* Explore mode's button, popping up when there's something to do nearby. */
+.explore-pop {
+  animation: explore-pop 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.25);
+}
+@keyframes explore-pop {
+  from { opacity: 0; translate: 0 12px; scale: 0.9; }
 }
 
 /* Exploring, the visitor walks to landmarks instead of clicking them. */

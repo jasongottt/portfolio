@@ -3,12 +3,13 @@ import {
   directionBetween,
   distanceField,
   gridPath,
-  hopCells,
+  hopLine,
   nearestOpen,
   neighborInDirection,
   parseLand,
   pathCells,
   pathDirection,
+  pathLine,
   route,
 } from "./mapGraph";
 
@@ -26,7 +27,7 @@ const map = {
 };
 const layout = {
   stages: { a: [0, 2], b: [4, 2], c: [4, 0], d: [8, 4], e: [0, 6] },
-  corners: { "b>d": [[8, 2]] },
+  bends: { "b>d": [[8, 2]] },
 };
 
 describe("parseLand", () => {
@@ -110,22 +111,44 @@ describe("route", () => {
 });
 
 describe("geometry", () => {
-  it("lists every cell a path crosses, corners included", () => {
-    expect(pathCells(layout, ["b", "d"])).toEqual([
-      [4, 2], [5, 2], [6, 2], [7, 2], [8, 2], [8, 3], [8, 4],
-    ]);
+  const steps = (cells) => cells.slice(1).map((cell, i) => Math.abs(cell[0] - cells[i][0]) + Math.abs(cell[1] - cells[i][1]));
+
+  it("runs a path with no bends straight, cell by cell", () => {
+    expect(pathCells(layout, ["a", "b"])).toEqual([[0, 2], [1, 2], [2, 2], [3, 2], [4, 2]]);
   });
 
-  it("refuses diagonal segments", () => {
-    const bent = { stages: { a: [0, 0], b: [3, 3] }, corners: {} };
-    expect(() => pathCells(bent, ["a", "b"])).toThrow(/diagonal/);
+  it("curves through bends, in four-way steps", () => {
+    const cells = pathCells(layout, ["b", "d"]);
+    expect(cells[0]).toEqual([4, 2]);
+    expect(cells.at(-1)).toEqual([8, 4]);
+    expect(cells).toContainEqual([8, 2]);
+    expect(steps(cells).every((step) => step === 1)).toBe(true);
+    expect(new Set(cells.map(String)).size).toBe(cells.length);
   });
 
-  it("walks a hop's cells from the stage you're leaving", () => {
-    expect(hopCells(map, layout, "d", "b")).toEqual([
-      [8, 4], [8, 3], [8, 2], [7, 2], [6, 2], [5, 2], [4, 2],
-    ]);
-    expect(hopCells(map, layout, "a", "b")).toEqual([[0, 2], [1, 2], [2, 2], [3, 2], [4, 2]]);
+  it("crosses a diagonal in four-way steps", () => {
+    const slant = { stages: { a: [0, 0], b: [3, 3] }, bends: {} };
+    const cells = pathCells(slant, ["a", "b"]);
+    expect(cells).toHaveLength(7);
+    expect(steps(cells).every((step) => step === 1)).toBe(true);
+  });
+
+  it("spaces a line evenly, through its bends", () => {
+    const line = pathLine(layout, ["b", "d"], "b", 0.5);
+    expect(line[0]).toEqual([4, 2]);
+    expect(line.at(-1)[0]).toBeCloseTo(8);
+    expect(line.at(-1)[1]).toBeCloseTo(4);
+    const gaps = line.slice(1).map((p, i) => Math.hypot(p[0] - line[i][0], p[1] - line[i][1]));
+    expect(Math.max(...gaps) - Math.min(...gaps)).toBeLessThan(0.05);
+    expect(Math.min(...line.map(([x, y]) => Math.hypot(x - 8, y - 2)))).toBeLessThan(0.3);
+  });
+
+  it("walks a hop's line from the stage you're leaving", () => {
+    const line = hopLine(map, layout, "d", "b", 1);
+    expect(line[0][0]).toBeCloseTo(8);
+    expect(line[0][1]).toBeCloseTo(4);
+    expect(line.at(-1)[0]).toBeCloseTo(4);
+    expect(hopLine(map, layout, "a", "b", 1)).toEqual([[0, 2], [1, 2], [2, 2], [3, 2], [4, 2]]);
   });
 });
 

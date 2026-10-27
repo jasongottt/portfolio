@@ -11,16 +11,11 @@ const skipsText = (count) => `${count} ${count === 1 ? "skip" : "skips"}`;
 // The skipping game's prompt (WorldBackground.jsx keeps the game): the meter
 // to time a throw on, the count as the stone skips, then how it went.
 function skippingPrompt(skip, best) {
-  if (skip.phase === "aim") return { level: "Throw when it's in the middle", meter: skip.since, verb: "Throw" };
-  if (skip.phase === "flying") return { level: "Skipping stones", title: skip.count ? skipsText(skip.count) : "…" };
+  if (skip.phase === "aim") return { meter: skip.since, verb: "Throw" };
+  if (skip.phase === "flying") return { note: skip.count ? skipsText(skip.count) : "…" };
   const result =
     skip.skips === 0 ? "Plunk. No skips" : `${skipsText(skip.skips)}${skip.ashore ? ", all the way across!" : "!"}`;
-  return {
-    level: skip.newBest ? "New best!" : `Skipping stones · Best ${best}`,
-    accent: skip.newBest,
-    title: result,
-    verb: "Again",
-  };
+  return { note: result, aside: skip.newBest ? "New best!" : `Best ${best}`, accent: skip.newBest, verb: "Again" };
 }
 
 // A track with the sweet spot in the middle and a marker sweeping across it,
@@ -43,62 +38,54 @@ function SkipMeter({ since }) {
 }
 
 /**
- * Explore mode's bar along the bottom: how to walk, and when the character
- * is close to something, what it is and a button to visit it. `near` is a
- * stage id, "secret", "campfire", "skipping", or null. `activity` is what
- * the character is doing at a spot (runWorld.js): by the campfire, the
- * button gets up again; at the beach, `skip` is the skipping game, and
- * `best` the best throw yet.
+ * Explore mode's controls over the world: Leave, in the nav's corner, and
+ * when the character is close to something, a button to visit it, popping
+ * up along the bottom. `near` is a stage id, "secret", "campfire",
+ * "skipping", or null. `activity` is what the character is doing at a spot
+ * (runWorld.js): by the campfire, the button gets up again; at the beach,
+ * `skip` is the skipping game (its meter and count show over the button),
+ * and `best` the best throw yet.
  */
 export function ExploreHud({ hudRef, isPhone, near, activity, skip, best, onVisit, onLeave }) {
   const stage = worldMap.stages.find((s) => s.id === near);
   const prompt =
-    activity === "campfire" ? { level: "Campfire", title: "Sitting by the fire", verb: "Get up" }
+    activity === "campfire" ? { verb: "Get up" }
     : activity === "skipping" && skip ? skippingPrompt(skip, best)
-    : stage ? { level: stage.level, title: stage.banner.title, verb: VERB[stage.action.type] }
-    : near === "secret" ? { level: "Secret", accent: true, title: "Something washed up here", verb: "Read" }
-    : near === "campfire" ? { level: "Campfire", title: "A crackling fire", verb: "Sit" }
-    : near === "skipping" ? { level: "Beach", title: "Calm water, flat stones", verb: "Skip a stone" }
+    : stage ? { verb: `${VERB[stage.action.type]} ${stage.banner.title}` }
+    : near === "secret" ? { verb: "Read the note" }
+    : near === "campfire" ? { verb: "Sit by the fire" }
+    : near === "skipping" ? { verb: "Skip a stone" }
     : null;
 
   return (
-    <div
-      ref={hudRef}
-      tabIndex={-1}
-      role="region"
-      aria-label="Explore mode"
-      style={{ ...styles.hud, ...(isPhone ? styles.hudPhone : {}) }}
-    >
-      <p style={styles.text} aria-live="polite">
+    <div ref={hudRef} tabIndex={-1} role="region" aria-label="Explore mode" style={styles.hud}>
+      <button
+        type="button"
+        className="pressable"
+        style={{ ...styles.leave, ...styles.corner, ...(isPhone ? styles.cornerPhone : {}) }}
+        onClick={onLeave}
+      >
+        Leave
+        {!isPhone ? <kbd style={styles.kbd}>Esc</kbd> : null}
+      </button>
+      <div style={{ ...styles.prompt, ...(isPhone ? styles.promptPhone : {}) }} aria-live="polite">
         {prompt ? (
-          <>
-            <span style={prompt.accent ? styles.accentLevel : styles.level}>{prompt.level}</span>
-            {prompt.meter !== undefined ? (
-              <SkipMeter since={prompt.meter} />
-            ) : (
-              <span style={styles.title}>{prompt.title}</span>
-            )}
-          </>
-        ) : (
-          <>
-            <span style={styles.level}>Exploring</span>
-            <span style={styles.hint}>
-              {isPhone ? "Tap the ground to walk" : "Walk with ←↑↓→ or WASD, or click the ground"}
-            </span>
-          </>
-        )}
-      </p>
-      <div style={styles.actions}>
-        {prompt?.verb ? (
-          <button type="button" className="pressable" style={styles.visit} onClick={() => onVisit(near)}>
-            {prompt.verb}
-            {!isPhone ? <kbd style={styles.kbd}>↵</kbd> : null}
-          </button>
+          // Keyed by the spot, so it pops up again at the next one.
+          <div key={near ?? activity} className="explore-pop" style={styles.pop}>
+            {prompt.meter !== undefined || prompt.note ? (
+              <p style={styles.tag}>
+                {prompt.meter !== undefined ? <SkipMeter since={prompt.meter} /> : prompt.note}
+                {prompt.aside ? <span style={prompt.accent ? styles.accent : styles.aside}>{prompt.aside}</span> : null}
+              </p>
+            ) : null}
+            {prompt.verb ? (
+              <button type="button" className="pressable" style={styles.visit} onClick={() => onVisit(near)}>
+                {prompt.verb}
+                {!isPhone ? <kbd style={styles.kbd}>↵</kbd> : null}
+              </button>
+            ) : null}
+          </div>
         ) : null}
-        <button type="button" className="pressable" style={styles.leave} onClick={onLeave}>
-          Leave
-          {!isPhone ? <kbd style={styles.kbd}>Esc</kbd> : null}
-        </button>
       </div>
     </div>
   );
@@ -147,57 +134,64 @@ const button = {
 };
 
 const styles = {
+  // Over the whole world, letting clicks through to it but for the buttons.
   hud: {
-    ...plate,
     position: "absolute",
-    left: "50%",
-    bottom: "20px",
-    transform: "translateX(-50%)",
-    width: "min(640px, calc(100% - 24px))",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: "16px",
-    padding: "10px 10px 10px 16px",
-    boxSizing: "border-box",
+    inset: 0,
+    pointerEvents: "none",
     outline: "none",
   },
-  hudPhone: {
-    bottom: "12px",
-    padding: "8px 8px 8px 12px",
-    gap: "10px",
+  corner: {
+    ...plate,
+    position: "absolute",
+    top: "14px",
+    right: "16px",
   },
-  text: {
+  cornerPhone: {
+    top: "10px",
+    right: "12px",
+  },
+  prompt: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: "24px",
+    display: "flex",
+    justifyContent: "center",
+    pointerEvents: "none",
+  },
+  promptPhone: {
+    bottom: "16px",
+  },
+  pop: {
     display: "flex",
     flexDirection: "column",
-    gap: "2px",
-    minWidth: 0,
+    alignItems: "center",
+    gap: "8px",
+  },
+  // The skipping meter or count, over the button.
+  tag: {
+    ...plate,
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
     margin: 0,
+    padding: "7px 12px",
     fontFamily: "var(--mono)",
-  },
-  level: {
-    fontSize: "0.62rem",
-    letterSpacing: "0.14em",
-    textTransform: "uppercase",
-    color: tint(37, 86, 0.55),
-  },
-  accentLevel: {
-    fontSize: "0.62rem",
-    letterSpacing: "0.14em",
-    textTransform: "uppercase",
-    color: MINT,
-  },
-  title: {
-    fontSize: "0.86rem",
+    fontSize: "0.78rem",
     color: tint(50, 97),
   },
-  // The skipping meter.
+  aside: {
+    color: tint(37, 86, 0.6),
+  },
+  accent: {
+    color: MINT,
+  },
   meter: {
     position: "relative",
     display: "block",
     width: "clamp(110px, 30vw, 200px)",
     height: "10px",
-    marginTop: "7px",
     border: `1px solid ${RULE}`,
     backgroundColor: shade(27, 4),
   },
@@ -219,20 +213,13 @@ const styles = {
     marginLeft: "-2px",
     backgroundColor: "var(--accent-warm)",
   },
-  hint: {
-    fontSize: "0.74rem",
-    color: tint(40, 88, 0.75),
-  },
-  actions: {
-    display: "flex",
-    gap: "6px",
-    flexShrink: 0,
-  },
   visit: {
     ...button,
     border: "1px solid var(--accent-warm)",
     backgroundColor: "var(--accent-warm)",
     color: shade(26, 4),
+    boxShadow: "0 6px 18px rgba(4, 3, 16, 0.5)",
+    pointerEvents: "auto",
   },
   leave: {
     ...button,
@@ -271,7 +258,7 @@ const styles = {
   },
   noteSign: {
     margin: "10px 0 20px",
-    fontFamily: '"Playfair Display", serif',
+    fontFamily: "var(--heading)",
     fontSize: "1.1rem",
     color: "var(--accent-warm)",
   },

@@ -84,7 +84,7 @@ const styles = {
     lineHeight: 1.1,
     letterSpacing: "-0.02em",
     color: tint(100, 98),
-    fontFamily: '"Playfair Display", serif',
+    fontFamily: "var(--heading)",
     fontWeight: 500,
   },
   titlePhone: {

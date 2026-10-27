@@ -1,21 +1,19 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { X } from "lucide-react";
 import { photos } from "../data/photos";
 import { RULE, shade, tint } from "../palette";
+import { polaroidLayout, printPadding } from "./polaroidLayout";
 
 // Each print's tilt in degrees, top to bottom.
 const TILTS = [-6, 5, -3];
-// On desktop the prints are tucked behind the About panel's right edge, this
-// far down it, poking out by PEEK px; hovering slides one further out.
-const DESK_TOPS = [26, 196, 366];
-const PEEK = 64;
-// On phones they hang from the panel's bottom edge instead, fanned across its
-// middle (each print's left edge, in px from the middle), their tops tucked
-// this far under it. They sway a little, unless motion is reduced.
-const PHONE_LEFTS = [-128, -46, 36];
-const PHONE_TUCKS = [30, 20, 34];
+// On desktop the prints are tucked behind the About panel's right edge, down
+// its whole height; on phones they hang from its bottom edge instead, across
+// its middle. Either way they're sized to fit that side (polaroidLayout.js).
+// Hovering a tucked one slides it this share of its width further out;
+// hanging ones sway a little. Neither moves if motion is reduced.
+const SLIDE = 0.18;
 const SWAY = 1.2;
 const SWAY_SECONDS = 5.5;
 const PAPER = "#f3efe6";
@@ -41,6 +39,19 @@ export default function Polaroids({ isPhone, onViewingChange }) {
   const prints = useRef([]);
   const closeRef = useRef(null);
   const lastOpen = useRef(null);
+  const stack = useRef(null);
+  const [size, setSize] = useState(null);
+
+  // The stack is the panel's size; the prints are laid out to fit it.
+  useLayoutEffect(() => {
+    const element = stack.current;
+    const measure = () => setSize({ width: element.offsetWidth, height: element.offsetHeight });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  const layout = size && polaroidLayout(isPhone ? "bottom" : "right", size, photos.length);
 
   useEffect(() => {
     onViewingChange?.(open !== null);
@@ -68,16 +79,10 @@ export default function Polaroids({ isPhone, onViewingChange }) {
 
   return (
     <>
-      <div style={styles.stack}>
-        {photos.map((photo, index) => {
-          const place = isPhone
-            ? {
-                ...styles.printPhone,
-                left: `calc(50% + ${PHONE_LEFTS[index]}px)`,
-                top: `calc(100% - ${PHONE_TUCKS[index]}px)`,
-                zIndex: index + 1,
-              }
-            : { ...styles.printDesk, top: `${DESK_TOPS[index]}px`, zIndex: index + 1 };
+      <div ref={stack} style={styles.stack}>
+        {layout?.map(({ left, top, width }, index) => {
+          const photo = photos[index];
+          const place = { ...(isPhone && styles.hanging), left, top, width, padding: printPadding(width), zIndex: index + 1 };
           const tilt = TILTS[index];
           // While open, an invisible stand-in holds its place in the stack.
           if (open === index) return <span key={photo.src} aria-hidden="true" style={{ ...styles.print, ...place, visibility: "hidden" }} />;
@@ -90,7 +95,7 @@ export default function Polaroids({ isPhone, onViewingChange }) {
               style={{ ...styles.print, ...place, rotate: tilt }}
               // Hanging, they swing from the top; tucked, they slide out.
               animate={isPhone && !reduceMotion ? { rotate: [tilt, tilt + SWAY, tilt - SWAY, tilt] } : undefined}
-              whileHover={reduceMotion ? undefined : isPhone ? { y: 6, zIndex: 5 } : { x: 22, y: -6, rotate: tilt / 3, scale: 1.04, zIndex: 5 }}
+              whileHover={reduceMotion ? undefined : isPhone ? { y: 6, zIndex: 5 } : { x: SLIDE * width, y: -6, rotate: tilt / 3, scale: 1.04, zIndex: 5 }}
               whileFocus={reduceMotion ? undefined : { y: isPhone ? 6 : -4, zIndex: 5 }}
               transition={{
                 ...fly,
@@ -146,6 +151,7 @@ const styles = {
     pointerEvents: "none",
   },
   print: {
+    position: "absolute",
     appearance: "none",
     display: "block",
     border: "none",
@@ -154,17 +160,8 @@ const styles = {
     cursor: "pointer",
     pointerEvents: "auto",
   },
-  printDesk: {
-    position: "absolute",
-    left: `calc(100% - ${PEEK}px)`,
-    width: "124px",
-    padding: "7px 7px 26px",
-  },
   // Pinned at the top, so the tilt and sway swing from there.
-  printPhone: {
-    position: "absolute",
-    width: "92px",
-    padding: "5px 5px 18px",
+  hanging: {
     transformOrigin: "50% 0",
   },
   photo: {
@@ -211,8 +208,7 @@ const styles = {
   caption: {
     padding: "16px 8px 20px",
     textAlign: "center",
-    fontFamily: '"Playfair Display", serif',
-    fontStyle: "italic",
+    fontFamily: "var(--heading)",
     fontSize: "1.15rem",
     color: INK,
   },

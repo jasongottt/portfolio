@@ -158,9 +158,10 @@ export default function Experience({ isPhone, onOpenProject }) {
   );
 }
 
+// Martian Mono is wide already, so the labels are only lightly spaced.
 const mono = {
   fontFamily: "var(--mono)",
-  letterSpacing: "0.12em",
+  letterSpacing: "0.06em",
   textTransform: "uppercase",
 };
 
@@ -226,7 +227,7 @@ const styles = {
     minWidth: 0,
   },
   role: {
-    fontFamily: '"Playfair Display", serif',
+    fontFamily: "var(--heading)",
     fontWeight: 500,
     fontSize: "1.15rem",
     lineHeight: 1.2,

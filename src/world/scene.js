@@ -1,12 +1,12 @@
 import * as THREE from "three";
 import { createCampfire } from "./campfire";
 import { GRASS, GRASS_ALPHA, LITTER_ALPHA, foliageCode, landCode, seaCode } from "./dither";
-import { GOLD, MINT } from "./dusk";
+import { FOLIAGE_RAMP, GOLD, GRASS_RAMP, LAND_RAMP, MINT } from "./dusk";
 import { groundAim } from "./journey";
 import { createFootsteps } from "./footsteps";
 import { createLeafPiles } from "./leafPiles";
 import { createSkipping } from "./skipping";
-import { distanceField, gridPath, hopCells, nearestOpen, parseLand, pathCells, route } from "./mapGraph";
+import { distanceField, gridPath, hopLine, nearestOpen, parseLand, pathCells, pathLine, route } from "./mapGraph";
 import { landBounds } from "./nameplate";
 import { LANDMARK_SPOTS, beachHeading, campfireSeat, landmarkOffset, secretCell, walkableGrid } from "./walkable";
 
@@ -42,6 +42,8 @@ const GREEN_TUFTS = 0.9;
 const EVERGREENS = 0.3;
 // Crimson, orange and gold, as foliage codes.
 const LEAF_CODES = [0.7, 1, 1.35];
+// Dust kicked up by footsteps, paler than any ground (footsteps.js).
+const DUST = "#ffdfba";
 // Grass tufts per grassy cell, at most.
 const TUFTS = 3;
 // Falling leaves: one per this many cells, dropping from this high.
@@ -150,6 +152,8 @@ export function buildWorld(map, layoutName, stops) {
   const coast = distanceField(land.isLand, cols, rows);
   const offshore = distanceField((col, row) => !land.isLand(col, row), cols, rows);
   const toWorld = ([col, row]) => [col - cols / 2 + 0.5, 0, row - rows / 2 + 0.5];
+  // The cell a point between cells falls in.
+  const cellAt = ([col, row]) => [Math.round(col), Math.round(row)];
   const cellKey = (col, row) => row * cols + col;
 
   // Cells near a path or landmark stay clear: no ridges, trees or rocks.
@@ -421,18 +425,18 @@ export function buildWorld(map, layoutName, stops) {
     return { stage, anchor: [x, y + 1.4 * LANDMARK_SCALE, z], foot: [x, y, z], size: 2.4 * LANDMARK_SCALE };
   });
 
-  // Planks where paths cross water, stones every other cell on land.
+  // Along each path's line, about a cell apart: planks where it crosses
+  // water, turned across it, and a stepping stone every other cell on land.
   const planks = [];
   const stones = [];
   for (const path of map.paths) {
-    const cells = pathCells(layout, path);
-    cells.forEach((cell, i) => {
-      const [col, row] = cell;
-      if (!land.isLand(col, row)) {
-        const next = cells[i + 1] ?? cells[i - 1];
-        planks.push({ cell, across: next[1] === row });
+    const line = pathLine(layout, path, path[0], 1);
+    line.forEach((point, i) => {
+      if (!land.isLand(...cellAt(point))) {
+        const [a, b] = [line[Math.max(0, i - 1)], line[Math.min(line.length - 1, i + 1)]];
+        planks.push({ point, heading: Math.atan2(b[1] - a[1], b[0] - a[0]) });
       } else if (i % 2 === 1) {
-        stones.push(cell);
+        stones.push(point);
       }
     });
   }
@@ -447,12 +451,12 @@ export function buildWorld(map, layoutName, stops) {
     scene.add(mesh);
     return mesh;
   };
-  instanced(new THREE.BoxGeometry(0.78, 0.14, 1.3), keep(new THREE.MeshLambertMaterial({ color: landCode(0.48), flatShading: true })), planks, (matrix, { cell, across }) => {
-    const [x, , z] = toWorld(cell);
-    return matrix.makeRotationY(across ? 0 : Math.PI / 2).setPosition(x, PLANK_HEIGHT, z);
+  instanced(new THREE.BoxGeometry(0.78, 0.14, 1.3), keep(new THREE.MeshLambertMaterial({ color: landCode(0.48), flatShading: true })), planks, (matrix, { point, heading }) => {
+    const [x, , z] = toWorld(point);
+    return matrix.makeRotationY(-heading).setPosition(x, PLANK_HEIGHT, z);
   });
-  instanced(new THREE.BoxGeometry(0.34, 0.12, 0.34), keep(new THREE.MeshLambertMaterial({ color: landCode(0.99), flatShading: true })), stones, (matrix, cell) => {
-    const [x, , z] = toWorld(cell);
+  instanced(new THREE.BoxGeometry(0.34, 0.12, 0.34), keep(new THREE.MeshLambertMaterial({ color: landCode(0.99), flatShading: true })), stones, (matrix, point) => {
+    const [x, , z] = toWorld(point);
     return matrix.makeTranslation(x, heightAt(x, z) + 0.05, z);
   });
 
@@ -550,12 +554,15 @@ export function buildWorld(map, layoutName, stops) {
     placeScattered(0)
   );
 
-  // Lanterns along the bridges: a post at the side, a gold lamp on top.
+  // Lanterns along the bridges: a post at the side away from the camera, a
+  // gold lamp on top.
   const lanterns = planks
     .filter((_, i) => i % LANTERN_EVERY === 1)
-    .map(({ cell, across }) => {
-      const [x, , z] = toWorld(cell);
-      return across ? [x, z - 0.75] : [x - 0.75, z];
+    .map(({ point, heading }) => {
+      const [x, , z] = toWorld(point);
+      let [sideX, sideZ] = [Math.sin(heading), -Math.cos(heading)];
+      if (sideX + sideZ > 0) [sideX, sideZ] = [-sideX, -sideZ];
+      return [x + sideX * 0.75, z + sideZ * 0.75];
     });
   instanced(
     new THREE.BoxGeometry(0.08, 0.9, 0.08),
@@ -614,16 +621,16 @@ export function buildWorld(map, layoutName, stops) {
     })
   );
   scene.add(...skipping.objects);
-  // Puffs where Jason's feet land, the colors of the ground there.
+  // Puffs where Jason's feet land, lighter than the ground there.
   const footsteps = keep(
     createFootsteps({
       colors: {
-        sand: [landCode(0.9), landCode(0.97)],
-        leaves: LEAF_CODES.map((code) => foliageCode(code * 0.9)),
-        stone: [landCode(0.86)],
-        plank: [landCode(0.45), landCode(0.55)],
+        sand: [DUST, LAND_RAMP[5]],
+        grass: [GRASS_RAMP[5], "#cfe08f"],
+        leaves: FOLIAGE_RAMP.slice(3),
+        stone: [DUST, "#e6d8ec"],
+        plank: LAND_RAMP.slice(4),
       },
-      grass: foliageCode(1.05),
     })
   );
   scene.add(...footsteps.objects);
@@ -646,19 +653,19 @@ export function buildWorld(map, layoutName, stops) {
   const spots = [
     ...map.stages.map((stage) => {
       const [x, , z] = toWorld(layout.stages[stage.id]);
-      return { id: stage.id, x, z };
+      return { id: stage.id, x, z, stage: true };
     }),
     { id: "secret", x: secretX, z: secretZ },
     ...(campfire ? [{ id: "campfire", x: campfire.fire[0], z: campfire.fire[2] }] : []),
   ];
 
-  // The walk: every cell from the first stop to the last, and where each
-  // stop falls along it.
+  // The walk: along the paths' lines from the first stop to the last, a
+  // point about every cell, and where each stop falls along it.
   const walk = [layout.stages[stops[0]]];
   const stopIndex = [0];
   for (let i = 1; i < stops.length; i++) {
     const ids = route(map, stops[i - 1], stops[i]);
-    for (let j = 1; j < ids.length; j++) walk.push(...hopCells(map, layout, ids[j - 1], ids[j]).slice(1));
+    for (let j = 1; j < ids.length; j++) walk.push(...hopLine(map, layout, ids[j - 1], ids[j], 1).slice(1));
     stopIndex.push(walk.length - 1);
   }
   const walkPoints = walk.map(groundAt);
@@ -670,11 +677,11 @@ export function buildWorld(map, layoutName, stops) {
     const middle = (from + to) / 2;
     let best = null;
     for (let j = from; j <= to; j++) {
-      if (land.isLand(...walk[j]) && (best === null || Math.abs(j - middle) < Math.abs(best - middle))) best = j;
+      if (land.isLand(...cellAt(walk[j])) && (best === null || Math.abs(j - middle) < Math.abs(best - middle))) best = j;
     }
     if (best !== null) {
       const [x, , z] = toWorld(walk[best]);
-      piles.push({ x, z, size: 0.95, turn: hash(...walk[best], 74) * Math.PI * 2 });
+      piles.push({ x, z, size: 0.95, turn: hash(...cellAt(walk[best]), 74) * Math.PI * 2 });
     }
   }
   const leafPiles = keep(createLeafPiles({ spots: piles, heightAt, time, codes: LEAF_CODES }));
@@ -726,7 +733,7 @@ export function buildWorld(map, layoutName, stops) {
         return [cx, cz];
       });
     },
-    /** What can be visited in Explore mode: { id, x, z }, ids are stage ids, "secret" or "campfire". */
+    /** What can be visited in Explore mode: { id, x, z, stage }, ids are stage ids, "secret" or "campfire". */
     spots,
     /** The campfire's { fire, seat } ([x, y, z] each), or null. */
     campfire: campfire && { fire: campfire.fire, seat: campfire.seat },

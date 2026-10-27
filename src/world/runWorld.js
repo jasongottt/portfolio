@@ -25,12 +25,15 @@ const MARKER_DROP = 12;
 // middle of that room, and each walk takes this share of a screen of
 // scrolling. Without it (phones), the walks happen in the gaps.
 const MIN_OPEN_SIDE = 0.3;
-const WALK_SPAN = 0.55;
+const WALK_SPAN = 0.8;
 
 // Explore mode: walking speed in cells per second, how close (in cells) a
-// spot has to be to visit, and how far feet keep from the water's edge.
+// spot has to be to visit (a stage, from further off, unless there's a beach
+// to skip stones from underfoot), and how far feet keep from the water's
+// edge.
 const EXPLORE_SPEED = 5.5;
 const NEAR = 1.6;
+const NEAR_STAGE = 3;
 const EDGE = 0.3;
 // Sitting by the campfire, the camera comes this share of the way in, and
 // looks between the character and the fire.
@@ -236,19 +239,30 @@ export function runWorld({
     return explorer.x !== start[0] || explorer.z !== start[1];
   }
 
-  // The visitable spot within reach of the explorer, if any; failing that, a
-  // beach to skip stones from.
-  function spotNearby() {
+  // The closest spot within `reach` cells of the explorer (only stages, if
+  // `stagesOnly`), if any.
+  function closestSpot(reach, stagesOnly) {
     let best = null;
-    let bestGap = NEAR;
+    let bestGap = reach;
     for (const spot of world.spots) {
+      if (stagesOnly && !spot.stage) continue;
       const gap = Math.hypot(spot.x - explorer.x, spot.z - explorer.z);
       if (gap < bestGap) {
         best = spot.id;
         bestGap = gap;
       }
     }
-    return best ?? (activity === "skipping" || world.beachAt(explorer.x, explorer.z) ? "skipping" : null);
+    return best;
+  }
+
+  // What the explorer can visit: a spot close by; failing that, a beach to
+  // skip stones from; failing that, a stage further off.
+  function spotNearby() {
+    return (
+      closestSpot(NEAR, false) ??
+      (activity === "skipping" || world.beachAt(explorer.x, explorer.z) ? "skipping" : null) ??
+      closestSpot(NEAR_STAGE, true)
+    );
   }
 
   const onKey = (event) => {

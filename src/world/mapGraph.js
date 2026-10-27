@@ -31,13 +31,71 @@ export const findPath = (map, a, b) =>
   map.paths.find((path) => path.includes(a) && path.includes(b) && a !== b);
 
 /**
- * The grid points a path visits, starting from `fromId`: that stage, any
- * corners, then the stage at the other end.
+ * The points a path passes through, starting from `fromId`: that stage, any
+ * bends, then the stage at the other end.
  */
 export function pathPoints(layout, path, fromId) {
-  const corners = layout.corners[pathKey(path)] ?? [];
-  const points = [layout.stages[path[0]], ...corners, layout.stages[path[1]]];
+  const bends = layout.bends[pathKey(path)] ?? [];
+  const points = [layout.stages[path[0]], ...bends, layout.stages[path[1]]];
   return fromId === path[0] ? points : points.reverse();
+}
+
+// A path's curve is traced in this many pieces between each pair of its
+// points, then evenly spaced.
+const TRACE = 48;
+
+// One stretch of a centripetal Catmull-Rom curve, from b to c (a and d steer
+// it), at `t` (0 to 1). Centripetal, so it never loops or overshoots much.
+function curveAt(a, b, c, d, t) {
+  const knot = (p, q) => Math.max(1e-6, Math.hypot(q[0] - p[0], q[1] - p[1]) ** 0.5);
+  const t1 = knot(a, b);
+  const t2 = t1 + knot(b, c);
+  const t3 = t2 + knot(c, d);
+  const u = t1 + (t2 - t1) * t;
+  const mix = (p, q, from, to) => [
+    (p[0] * (to - u) + q[0] * (u - from)) / (to - from),
+    (p[1] * (to - u) + q[1] * (u - from)) / (to - from),
+  ];
+  const a1 = mix(a, b, 0, t1);
+  const a2 = mix(b, c, t1, t2);
+  const a3 = mix(c, d, t2, t3);
+  return mix(mix(a1, a2, 0, t2), mix(a2, a3, t1, t3), t1, t2);
+}
+
+/**
+ * A path's line from `fromId`: a smooth curve through its stages and bends,
+ * as [col, row] points (between cells, mostly) evenly spaced about `spacing`
+ * cells apart, both ends included. A path with no bends is straight.
+ */
+export function pathLine(layout, path, fromId, spacing) {
+  const points = pathPoints(layout, path, fromId);
+  // Mirrored past each end, so the curve leaves and arrives heading at its
+  // first and last bends.
+  const ends = [
+    [2 * points[0][0] - points[1][0], 2 * points[0][1] - points[1][1]],
+    [2 * points.at(-1)[0] - points.at(-2)[0], 2 * points.at(-1)[1] - points.at(-2)[1]],
+  ];
+  const steered = [ends[0], ...points, ends[1]];
+  const traced = [points[0]];
+  for (let i = 1; i < steered.length - 2; i++) {
+    for (let k = 1; k <= TRACE; k++) traced.push(curveAt(steered[i - 1], steered[i], steered[i + 1], steered[i + 2], k / TRACE));
+  }
+  // Evenly spaced along it.
+  const along = [0];
+  for (let i = 1; i < traced.length; i++) {
+    along.push(along[i - 1] + Math.hypot(traced[i][0] - traced[i - 1][0], traced[i][1] - traced[i - 1][1]));
+  }
+  const length = along.at(-1);
+  const pieces = Math.max(1, Math.round(length / spacing));
+  const line = [];
+  for (let n = 0, i = 1; n <= pieces; n++) {
+    const at = (length * n) / pieces;
+    while (i < traced.length - 1 && along[i] < at) i++;
+    const t = (at - along[i - 1]) / Math.max(1e-9, along[i] - along[i - 1]);
+    const [p, q] = [traced[i - 1], traced[i]];
+    line.push([p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]);
+  }
+  return line;
 }
 
 /** Direction of a straight step between two grid points, or null if it isn't one. */
@@ -49,9 +107,10 @@ export function directionBetween([c0, r0], [c1, r1]) {
   return null;
 }
 
-/** A path's direction at a stage is the way its first segment leaves it. */
+/** A path's direction at a stage is the way its first step leaves it. */
 export function pathDirection(layout, path, fromId) {
-  const [first, second] = pathPoints(layout, path, fromId);
+  const cells = pathCells(layout, path);
+  const [first, second] = fromId === path[0] ? cells : cells.reverse();
   return directionBetween(first, second);
 }
 
@@ -110,30 +169,40 @@ export function distanceField(inside, cols, rows) {
   return (col, row) => dist[row]?.[col] ?? 0;
 }
 
-/** Every cell a path passes through, in order, both ends included. */
+// How finely a path's line is followed to find the cells it crosses.
+const FINE = 0.05;
+
+/**
+ * Every cell a path's line passes through, in order, both ends included, in
+ * four-way steps: where the line cuts a corner, the neighbor it passes
+ * nearer.
+ */
 export function pathCells(layout, path) {
-  const points = pathPoints(layout, path, path[0]);
-  const cells = [points[0]];
-  for (let i = 1; i < points.length; i++) {
-    const [c0, r0] = points[i - 1];
-    const [c1, r1] = points[i];
-    const direction = directionBetween(points[i - 1], points[i]);
-    if (!direction) throw new Error(`Path ${pathKey(path)} has a diagonal or empty segment at [${c0}, ${r0}]`);
-    const [dc, dr] = STEPS[direction];
-    for (let c = c0, r = r0; c !== c1 || r !== r1; ) {
-      c += dc;
-      r += dr;
-      cells.push([c, r]);
+  const cells = [];
+  const same = (a, b) => a && b && a[0] === b[0] && a[1] === b[1];
+  for (const [x, y] of pathLine(layout, path, path[0], FINE)) {
+    const cell = [Math.round(x), Math.round(y)];
+    const last = cells.at(-1);
+    if (same(cell, last)) continue;
+    // Back into the cell before (the line grazing an edge): undo the step.
+    if (same(cell, cells.at(-2))) {
+      cells.pop();
+      continue;
     }
+    if (last && last[0] !== cell[0] && last[1] !== cell[1]) {
+      const across = [cell[0], last[1]];
+      const down = [last[0], cell[1]];
+      const gap = ([c, r]) => (c - x) ** 2 + (r - y) ** 2;
+      cells.push(gap(across) < gap(down) ? across : down);
+    }
+    cells.push(cell);
   }
   return cells;
 }
 
-/** The cells of the walk between two neighboring stages, from `fromId`. */
-export function hopCells(map, layout, fromId, toId) {
-  const path = findPath(map, fromId, toId);
-  const cells = pathCells(layout, path);
-  return path[0] === fromId ? cells : cells.reverse();
+/** The line of the walk between two neighboring stages, from `fromId` (pathLine). */
+export function hopLine(map, layout, fromId, toId, spacing) {
+  return pathLine(layout, findPath(map, fromId, toId), fromId, spacing);
 }
 
 const keyOf = ([col, row]) => `${col},${row}`;

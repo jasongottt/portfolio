@@ -84,11 +84,11 @@ describe.each(Object.entries(worldMap.layouts))("%s layout", (name, layout) => {
     }
   });
 
-  it("only has corners for paths that exist", () => {
-    for (const key of Object.keys(layout.corners)) expect(pathKeys).toContain(key);
+  it("only has bends for paths that exist", () => {
+    for (const key of Object.keys(layout.bends)) expect(pathKeys).toContain(key);
   });
 
-  it("draws every path in straight lines, with short bridges", () => {
+  it("keeps every path's bridges short", () => {
     for (const path of worldMap.paths) {
       const cells = pathCells(layout, path);
       let water = 0;

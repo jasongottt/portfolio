@@ -137,10 +137,12 @@ const styles = {
     overflowX: "auto",
     scrollbarWidth: "none",
   },
-  // Tighter items on phones, so all six fit on one row.
+  // Tighter items on phones, so all six fit on one row: the labels' font
+  // set narrower too (it's a wide one).
   itemPhone: {
     padding: DITHERED ? "6px 4px" : "6px 5px",
     fontSize: "0.65rem",
+    fontStretch: "80%",
     letterSpacing: "0",
   },
   link: {

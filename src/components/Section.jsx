@@ -17,8 +17,8 @@ const EDGE = 8;
 // and the walk happens as the gap scrolls by (world/journey.js). On desktop
 // the world is always in view beside the column; the gap gives the walk room
 // between panels rather than under the last one's text.
-const TRAVEL_GAP_PHONE = "50svh";
-const TRAVEL_GAP_DESKTOP = "16svh";
+const TRAVEL_GAP_PHONE = "56svh";
+const TRAVEL_GAP_DESKTOP = "22svh";
 
 // A stage's pixel landmark, at a size that sits beside a section title.
 function StageBadge({ icon }) {
