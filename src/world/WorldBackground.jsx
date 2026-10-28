@@ -80,6 +80,7 @@ export default function WorldBackground({
   const titleBlockRef = useRef(null);
   const surnameRef = useRef(null);
   const introRef = useRef(null);
+  const inviteRef = useRef(null);
   const landmarkRefs = useRef(new Map());
   const worldRef = useRef(null);
   const hudRef = useRef(null);
@@ -118,6 +119,7 @@ export default function WorldBackground({
           titleBlock: titleBlockRef.current,
           surname: surnameRef.current,
           intro: introRef.current,
+          invite: inviteRef.current,
           onNear: setNear,
           onActivity: (id) => {
             setActivity(id);
@@ -321,8 +323,18 @@ export default function WorldBackground({
             <p ref={surnameRef} style={styles.surname} aria-hidden="true">
               Gottesman
             </p>
-            <div ref={introRef} style={styles.fade}>
-              <HeroIntro isPhone={isPhone} />
+            {/* The intro at the top of the page, and at the end, in the same
+                spot, an invitation to explore (runWorld.js shows each). */}
+            <div style={styles.under}>
+              <div ref={introRef} style={{ ...styles.fade, ...styles.stacked }}>
+                <HeroIntro isPhone={isPhone} />
+              </div>
+              <div ref={inviteRef} style={{ ...styles.fade, ...styles.stacked }}>
+                {/* <p style={styles.thanks}>thanks for visiting!!!</p> */}
+                <button type="button" className="nav-link" style={styles.explore} onClick={startExploring}>
+                  {isPhone ? "Explore" : "Press E to explore"}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -464,6 +476,34 @@ const styles = {
     opacity: 0,
     visibility: "hidden",
     transition: "opacity 600ms ease, visibility 600ms",
+  },
+  // The intro and the invitation to explore share a spot under the surname.
+  under: {
+    display: "grid",
+  },
+  stacked: {
+    gridArea: "1 / 1",
+  },
+  thanks: {
+    margin: "8px 0 12px",
+    fontFamily: "var(--heading)",
+    fontSize: "clamp(1.25rem, 2.2vw, 1.7rem)",
+    color: tint(50, 97),
+    textShadow: `0 3px 0 ${SEA_RAMP[0]}`,
+  },
+  // Explore is a game thing, so it's in the playable mint, as in the nav;
+  // just the words, so the last screen stays clean.
+  explore: {
+    appearance: "none",
+    padding: "6px 10px",
+    border: "none",
+    background: "none",
+    fontFamily: "var(--mono)",
+    fontSize: "0.8rem",
+    letterSpacing: "0.04em",
+    color: MINT,
+    cursor: "pointer",
+    pointerEvents: "auto",
   },
   tapLayer: {
     position: "absolute",

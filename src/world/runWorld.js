@@ -75,9 +75,10 @@ const smoothstep = (t) => t * t * (3 - 2 * t);
  * - landmarks: a Map from stage id to the element placed over its landmark.
  * - layer: gets data-settled="true" while the camera rests on the overview,
  *   which shows the circles under the landmarks (index.css).
- * - titleBlock, surname, intro: the text under the word. The block is placed
- *   under the word in the overview; surname and intro fade in only once the
- *   camera has settled there, and the intro only at the top of the page.
+ * - titleBlock, surname, intro, invite: what's under the word. The block is
+ *   placed under the word in the overview; the rest fade in only once the
+ *   camera has settled there: the intro only at the top of the page, the
+ *   invitation to explore only at the end.
  * - onNear: in Explore mode, called with the id of the spot the character
  *   is close enough to visit (a stage id, "secret", "campfire" or
  *   "skipping"), or null.
@@ -102,6 +103,7 @@ export function runWorld({
   titleBlock,
   surname,
   intro,
+  invite,
   onNear,
   onActivity,
   onFirstFrame,
@@ -489,6 +491,7 @@ export function runWorld({
     show(surname, settled);
     if (layer.dataset.settled !== String(settled)) layer.dataset.settled = String(settled);
     show(intro, settled && scrollY < height);
+    show(invite, settled && scrollY >= height);
     if (!exploring) placeLandmarks(width, height, journey.overview > 0.5);
 
     // Fog starts past whatever the camera is looking at, so the horizon

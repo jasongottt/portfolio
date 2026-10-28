@@ -105,9 +105,9 @@ export const worldMap = {
   secret: {
     island: "about",
     title: "A note in a bottle",
-    text: "You found it! Most people just scroll past, so thanks for taking a walk around. If you liked wandering my little world, I'd love to hear from you.",
+    text: "hello! this is a secret. thanks for taking a walk around. if you liked my website, i'd love to hear from you!!",
     sign: "Jason",
-    action: { label: "Say hi", type: "section", target: "contact" },
+    action: { label: "say hi", type: "section", target: "contact" },
   },
   paths: [
     ["about", "experience"],
