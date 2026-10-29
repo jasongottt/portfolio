@@ -51,8 +51,9 @@ function accessibleName(stage) {
 /**
  * The page's background: Jason's world (runWorld.js), fixed behind
  * everything. Also owns what sits on the world: the surname and intro under
- * the word, and an invisible button over each landmark, which is what
- * clicks, keyboard focus and screen readers land on.
+ * the word, an invisible button over each landmark, which is what clicks,
+ * keyboard focus and screen readers land on, and one over Jason himself,
+ * which pokes him.
  *
  * The three.js side loads after first paint, behind a still dusk gradient.
  * `onStatusChange` reports "ready", or "failed" if WebGL can't run, in which
@@ -81,6 +82,7 @@ export default function WorldBackground({
   const surnameRef = useRef(null);
   const introRef = useRef(null);
   const inviteRef = useRef(null);
+  const heroRef = useRef(null);
   const landmarkRefs = useRef(new Map());
   const worldRef = useRef(null);
   const hudRef = useRef(null);
@@ -120,6 +122,7 @@ export default function WorldBackground({
           surname: surnameRef.current,
           intro: introRef.current,
           invite: inviteRef.current,
+          hero: heroRef.current,
           onNear: setNear,
           onActivity: (id) => {
             setActivity(id);
@@ -400,6 +403,19 @@ export default function WorldBackground({
               ) : null}
             </>
           ) : null}
+
+          {/* Over Jason himself (runWorld.js places it): clicking pokes him.
+              A click doesn't take focus, so Enter still does what the
+              Explore button says. */}
+          <button
+            ref={heroRef}
+            type="button"
+            className="world-hero"
+            style={styles.hero}
+            aria-label="Jason (poke him)"
+            onPointerDown={(event) => event.preventDefault()}
+            onClick={() => worldRef.current?.poke()}
+          />
         </>
       ) : null}
     </div>
@@ -504,6 +520,17 @@ const styles = {
     color: MINT,
     cursor: "pointer",
     pointerEvents: "auto",
+  },
+  hero: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    padding: 0,
+    border: "none",
+    background: "none",
+    cursor: "pointer",
+    pointerEvents: "auto",
+    visibility: "hidden",
   },
   tapLayer: {
     position: "absolute",

@@ -490,7 +490,8 @@ button:focus-visible {
 .world-landmark:focus-visible .world-label {
   opacity: 1;
 }
-.world-landmark:focus-visible {
+.world-landmark:focus-visible,
+.world-hero:focus-visible {
   outline: none;
 }
 
@@ -552,8 +553,10 @@ button:focus-visible {
   0%, 100% { translate: 0 0; opacity: 0.45; }
   50% { translate: 0 7px; opacity: 0.8; }
 }
-/* Selection brackets at the corners, blinking like a game cursor. */
-.world-landmark::before {
+/* Selection brackets at the corners, blinking like a game cursor; around
+   Jason too, when he has keyboard focus. */
+.world-landmark::before,
+.world-hero::before {
   content: "";
   position: absolute;
   inset: -4px;
@@ -564,7 +567,8 @@ button:focus-visible {
   mask: conic-gradient(at 10px 10px, #0000 75%, #000 0) 0 0 / calc(100% - 10px) calc(100% - 10px);
 }
 .world-landmark:hover::before,
-.world-landmark:focus-visible::before {
+.world-landmark:focus-visible::before,
+.world-hero:focus-visible::before {
   opacity: 1;
   animation: map-blink 1s steps(1) infinite;
 }

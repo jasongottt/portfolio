@@ -3,7 +3,7 @@ import { THROW_FRAME, createCharacter } from "./character";
 import { createDither } from "./dither";
 import { FOV, FRAME_Y, blendPoses, followPose, groundAim, journeyAt, overviewPose } from "./journey";
 import { layoutFor } from "./nameplate";
-import { RELEASE_FRAME } from "./heroSprite";
+import { HERO_SHEET, RELEASE_FRAME } from "./heroSprite";
 import { buildWorld } from "./scene";
 
 // Screen pixels per world pixel. Phones get finer pixels, or the letters
@@ -35,6 +35,23 @@ const EXPLORE_SPEED = 5.5;
 const NEAR = 1.6;
 const NEAR_STAGE = 3;
 const EDGE = 0.3;
+// Running: exploring, holding Shift or heading somewhere at least
+// SPRINT_ROUTE cells off, he runs at RUN_SPEED cells a second; scrolling, he
+// runs once he has to go faster than RUN_FROM cells a second to keep up,
+// until he's down to WALK_FROM. Once he's run TIRED_AFTER cells (it wears
+// off at RECOVER cells a second while he isn't running), he catches his
+// breath when he stops, either way; it never stops him mid-run.
+const RUN_SPEED = 10;
+const SPRINT_ROUTE = 12;
+const RUN_FROM = 9;
+const WALK_FROM = 6;
+const TIRED_AFTER = 16;
+const RECOVER = 3;
+// His click target: this wide for how tall the standing figure is on screen.
+const HERO_WIDTH = 0.5;
+// His sprite's cells have room above his head for raised hands; the click
+// target is just the standing figure, a little headroom included.
+const HERO_TALL = (HERO_SHEET.figure / HERO_SHEET.cell[1]) * 1.06;
 // Sitting by the campfire, the camera comes this share of the way in, and
 // looks between the character and the fire.
 const FIRESIDE_ZOOM = 0.4;
@@ -54,6 +71,8 @@ const EXPLORE_KEYS = {
   KeyA: "left",
   ArrowRight: "right",
   KeyD: "right",
+  ShiftLeft: "run",
+  ShiftRight: "run",
 };
 // When nothing is moving (no scroll, the camera and character settled), the
 // world redraws at this rate instead of every frame: the sea and leaves keep
@@ -79,6 +98,7 @@ const smoothstep = (t) => t * t * (3 - 2 * t);
  *   placed under the word in the overview; the rest fade in only once the
  *   camera has settled there: the intro only at the top of the page, the
  *   invitation to explore only at the end.
+ * - hero: the element placed over the character, his click target (poke()).
  * - onNear: in Explore mode, called with the id of the spot the character
  *   is close enough to visit (a stage id, "secret", "campfire" or
  *   "skipping"), or null.
@@ -104,6 +124,7 @@ export function runWorld({
   surname,
   intro,
   invite,
+  hero,
   onNear,
   onActivity,
   onFirstFrame,
@@ -147,10 +168,16 @@ export function runWorld({
   const projected = new THREE.Vector3();
   const edge = new THREE.Vector3();
   const right = new THREE.Vector3();
+  const up = new THREE.Vector3();
   const shown = new Map();
 
   let exploring = false;
-  const explorer = { x: 0, z: 0, route: [] };
+  // Where the explorer is, the route it's following, and whether it's far
+  // enough to run.
+  const explorer = { x: 0, z: 0, route: [], running: false };
+  // Running, and how worn out he is from it (cells run lately).
+  let sprinting = false;
+  let winded = 0;
   // What the character is doing at a spot, and the one it's walking over
   // to do (startActivity). On a beach: where he stands and which way he
   // throws, whether he's aiming, seconds left of his throw, and the stone
@@ -211,17 +238,20 @@ export function runWorld({
     if (along || across) {
       setActivity(null);
       explorer.route = [];
+      sprinting = held.has("run");
+      const speed = sprinting ? RUN_SPEED : EXPLORE_SPEED;
       // Up walks away from the camera and right walks to the screen's right.
       let dx = groundAim.forward[0] * along + groundAim.right[0] * across;
       let dz = groundAim.forward[1] * along + groundAim.right[1] * across;
       const length = Math.hypot(dx, dz);
-      dx = (dx / length) * EXPLORE_SPEED * delta;
-      dz = (dz / length) * EXPLORE_SPEED * delta;
+      dx = (dx / length) * speed * delta;
+      dz = (dz / length) * speed * delta;
       // One axis at a time, so walking into the water slides along the shore.
       if (world.open(explorer.x + dx + Math.sign(dx) * EDGE, explorer.z)) explorer.x += dx;
       if (world.open(explorer.x, explorer.z + dz + Math.sign(dz) * EDGE)) explorer.z += dz;
     } else {
-      let budget = EXPLORE_SPEED * delta;
+      sprinting = explorer.running && explorer.route.length > 0;
+      let budget = (sprinting ? RUN_SPEED : EXPLORE_SPEED) * delta;
       while (budget > 0 && explorer.route.length) {
         const [tx, tz] = explorer.route[0];
         const gap = Math.hypot(tx - explorer.x, tz - explorer.z);
@@ -270,7 +300,9 @@ export function runWorld({
   const onKey = (event) => {
     const key = EXPLORE_KEYS[event.code];
     if (!exploring || !key || event.metaKey || event.ctrlKey || event.altKey) return;
-    event.preventDefault();
+    // (Shift on its own does nothing to prevent, and Shift+Tab should still
+    // move focus.)
+    if (key !== "run") event.preventDefault();
     if (event.type === "keydown") held.add(key);
     else held.delete(key);
   };
@@ -356,6 +388,26 @@ export function runWorld({
     }
   }
 
+  // His click target, over him on screen; only up close (`visible`).
+  function placeHero(width, height, visible) {
+    const { position, scale: size } = character.sprite;
+    projected.copy(position).project(camera);
+    up.setFromMatrixColumn(camera.matrixWorld, 1);
+    edge.copy(position).addScaledVector(up, size.y * HERO_TALL).project(camera);
+    const feet = [((projected.x + 1) / 2) * width, ((1 - projected.y) / 2) * height];
+    const top = ((1 - edge.y) / 2) * height;
+    const tall = feet[1] - top;
+    if (!visible || projected.z > 1 || tall < 8 || feet[0] < 0 || feet[0] > width || feet[1] < 0 || top > height) {
+      hero.style.visibility = "hidden";
+      return;
+    }
+    const wide = tall * HERO_WIDTH;
+    hero.style.visibility = "visible";
+    hero.style.width = `${wide}px`;
+    hero.style.height = `${tall}px`;
+    hero.style.transform = `translate(${feet[0] - wide / 2}px, ${top}px)`;
+  }
+
   function frame(now) {
     frameId = requestAnimationFrame(frame);
     const idle =
@@ -412,6 +464,16 @@ export function runWorld({
       }
       point = world.pointAlong(distance);
       walking = !snap && Math.abs(goal - distance) > 0.02;
+      const speed = Math.hypot(point[0] - before[0], point[2] - before[2]) / Math.max(delta, 1e-3);
+      sprinting = walking && !reducedMotion && speed > (sprinting ? WALK_FROM : RUN_FROM);
+    }
+    if (!walking) sprinting = false;
+    // Running wears him out; when he stops, he catches his breath.
+    const ran = sprinting ? Math.hypot(point[0] - before[0], point[2] - before[2]) : 0;
+    winded = sprinting ? winded + ran : Math.max(0, winded - RECOVER * delta);
+    if (winded >= TIRED_AFTER && !walking && !activity && !headingTo && !reducedMotion) {
+      character.catchBreath();
+      winded = 0;
     }
 
     // The camera: the follow pose and the overview, blended by the journey.
@@ -462,7 +524,7 @@ export function runWorld({
     // slides along shores).
     const moveX = point[0] - before[0];
     const moveZ = point[2] - before[2];
-    const steering = exploring && held.size > 0;
+    const steering = exploring && [...held].some((key) => key !== "run");
     const sideways = steering ? (held.has("right") ? 1 : 0) - (held.has("left") ? 1 : 0) : across;
     const along = steering
       ? (held.has("up") ? 1 : 0) - (held.has("down") ? 1 : 0)
@@ -472,6 +534,7 @@ export function runWorld({
     throwing = Math.max(0, throwing - delta);
     const footfall = character.update(point, {
       walking,
+      sprinting,
       moved: Math.hypot(moveX, moveZ),
       view,
       sitting,
@@ -493,6 +556,7 @@ export function runWorld({
     show(intro, settled && scrollY < height);
     show(invite, settled && scrollY >= height);
     if (!exploring) placeLandmarks(width, height, journey.overview > 0.5);
+    placeHero(width, height, exploring || journey.overview < 0.5);
 
     // Fog starts past whatever the camera is looking at, so the horizon
     // dissolves but the subject never does.
@@ -613,6 +677,11 @@ export function runWorld({
       const reach = (TAP_HEIGHT - origin.y) / direction.y;
       const to = world.pick(raycaster) ?? [origin.x + direction.x * reach, origin.z + direction.z * reach];
       explorer.route = world.routeTo([explorer.x, explorer.z], to);
+      explorer.running = explorer.route.length >= SPRINT_ROUTE;
+    },
+    /** Pokes the character (he's been clicked). */
+    poke() {
+      character.poke();
     },
     dispose() {
       cancelAnimationFrame(frameId);
